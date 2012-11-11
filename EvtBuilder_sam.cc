@@ -1,4 +1,4 @@
-
+ 
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,6 +51,15 @@ int main(int argc, char **argv){
   Long64_t maxentry=-1;
   Bool_t makeTraces=false;
   Bool_t useSoftwareFilters=true;
+  Bool_t extFlag=false;
+
+
+  //Filter settings see pixie manual
+  Double_t FL=3;
+  Double_t FG=1;
+  int CFD_delay=2; //in clock ticks
+  Double_t CFD_scale_factor =0.5;
+
   
   if (argc == 1 ){
     cout<<"Usage: ./EvtBuilder runNumber optionString"<<endl;
@@ -65,12 +74,26 @@ int main(int argc, char **argv){
     runNum = (Int_t) atoi(argv[1]);
     if ( (string) argv[2] == "traces")
       makeTraces=true;
+  } else if (argc == 6){
+    runNum = (Int_t) atoi(argv[1]);
+    FL = (Double_t) atoi(argv[2]);
+    FG = (Double_t) atoi(argv[3]);
+    CFD_delay = (Double_t) atoi(argv[4]);
+    CFD_scale_factor = (Double_t) atof(argv[5]);
+
+    cout<<"FL "<<FL<<endl;
+    cout<<"FG "<<FG<<endl;
+    cout<<"D "<<CFD_delay<<endl;
+    cout<<"CFD_scale_factor "<<CFD_scale_factor<<endl;
+
+    extFlag=true;
   }
+
+
+
+
   
-  
-  // SL_Event aEvent;
-  
-  //  gSystem->Load("libddaschannel.so");
+
   
   TFile *inFile=0;
   TFile *outFile=0;
@@ -87,9 +110,11 @@ int main(int argc, char **argv){
   cout <<"The number of entires is : "<< nentry << endl ;
  
   // Openning output Tree and output file
-  
-  outFile = fileMan->getOutputFile();
-  
+  if (extFlag == false)
+    outFile = fileMan->getOutputFile();
+  else
+    outFile = fileMan->getOutputFile(FL,FG,CFD_delay,CFD_scale_factor);
+
   outT = new TTree("flt","Filtered Data Tree --- Comment Description");
   cout << "Creating filtered Tree"<<endl;
   if(!outT)
@@ -137,7 +162,7 @@ int main(int argc, char **argv){
   Double_t softwareCFD;
   outT->Branch("SoftwareCFD",&softwareCFD,"SoftwareCDF/D");
 
-  vector <Double_t> integrals (numOfChannels);
+  Double_t integrals[numOfChannels];
     
   outT->Branch("Integral0",&integrals[0],"Integral0/D");
   outT->Branch("Integral1",&integrals[1],"Integral1/D");
@@ -170,12 +195,9 @@ int main(int argc, char **argv){
   //////////////////////////////////////////////////////////////////////////////////////////////
 
   //
+  
 
 
-  Double_t FL=3;
-  Double_t FG=0;
-  int CFD_delay=2; //in clock ticks
-  Double_t CFD_scale_factor =0.5;
 
 
   if(maxentry == -1)
@@ -184,7 +206,7 @@ int main(int argc, char **argv){
   if (makeTraces)
     maxentry=5;//cap off the number of entries for explict trace making
 
-  maxentry = 1000000;
+
 
   Double_t Time_1 =0;
   Double_t Time_2 =0;
@@ -214,7 +236,7 @@ int main(int argc, char **argv){
     delta_T1 = -1002;
     delta_T2 = -1002;
 
-    for (Int_t i=0;i<(Int_t) integrals.size();++i)
+    for (Int_t i=0;i<(Int_t) numOfChannels;++i)
       integrals[i]=-1002; //ditto
     
     //software genearted filters
@@ -240,6 +262,10 @@ int main(int argc, char **argv){
      
     }
     */
+
+    ///////////////////////////////////////////////////////////////////////////////////////////
+
+
     //Time_diff raw 
     timeDiffRaw = time - prevTime;
     prevTime = time;
@@ -258,7 +284,9 @@ int main(int argc, char **argv){
       }
       
       thisEventsCFD = theFilter.CFD(thisEventsFF,CFD_delay,CFD_scale_factor);
-      
+
+      softwareCFD = theFilter.GetZeroCrossing(thisEventsCFD);
+ 
       if (makeTraces){
 	for (Int_t j=0;j<(Int_t) thisEventsCFD.size();++j)
 	  CFDs->Fill(j,thisEventsCFD[j]);
@@ -279,13 +307,14 @@ int main(int argc, char **argv){
       thisEventsIntegral = -1002;
     }
 
-  
-    
+    integrals[chanid] = thisEventsIntegral;
+
     
     Double_t thresh=10;
-    
+
     if ( previousEvents.size() >= sizeOfRollingWindow )
       {
+
 
 	for (Int_t q=0;q<3;++q){	
 	  Int_t firstSpot=-1;

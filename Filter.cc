@@ -156,6 +156,10 @@ Double_t Filter::GetZeroCrossing(std::vector <Double_t> & CFD){
 	
       }
   }
-  
+
+  if (thisEventsZeroCrossings.size() == 0)
+    thisEventsZeroCrossings.push_back(-1002);
+
+
   return thisEventsZeroCrossings[0]; // take the first one
 }
