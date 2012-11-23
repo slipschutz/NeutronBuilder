@@ -18,19 +18,27 @@ FileManager::FileManager()
 
 }
 
-TFile *FileManager::loadFile(Int_t runNum) {
+TString FileManager::loadFile(Int_t runNum,Int_t fileNum) {
   
-  
+  fileName.str("");
+  outputFileName.str("");
   if (runNum <10){
-    fileName<<"run-000"<< runNum <<"-00";
+    fileName<<"run-000"<< runNum;
   } else if (runNum < 100){
-    fileName<<"run-00"<< runNum <<"-00";
+    fileName<<"run-00"<< runNum;
   } else if (runNum <1000) {
-    fileName<<"run-0"<< runNum <<"-00";
+    fileName<<"run-0"<< runNum;
   } else {
-    cout<<"Update run number parsing"<<endl; return 0;
+    cout<<"Update run number parsing"<<endl; return "Crap";
   }
-  
+
+  if (fileNum < 10){
+    fileName<<"-0"<<fileNum;
+  }else if (fileNum >=10 ){
+    fileName<<"-"<<fileNum;
+  }
+    
+
   outputFileName << fileName.str()<<"-output.root"; //For later                                                                                              
   fileName << ".root";
   
@@ -38,7 +46,7 @@ TFile *FileManager::loadFile(Int_t runNum) {
   
   
   
-  return new TFile(fileName.str().c_str(),"read");
+  return fileName.str();
 
 
 }

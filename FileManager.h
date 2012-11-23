@@ -9,7 +9,7 @@ class FileManager {
 
 public:
   FileManager();
-  TFile * loadFile(Int_t runNum );
+  TString loadFile(Int_t runNum,Int_t );
 
   TFile * getOutputFile();
   TFile * getOutputFile(Double_t FL, Double_t FG, Double_t d, Double_t w);
