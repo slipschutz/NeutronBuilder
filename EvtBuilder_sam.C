@@ -57,8 +57,8 @@ int main(int argc, char **argv){
   Bool_t extFlag=false;
 
 
-  //Filter settings see pixie manual
-  Double_t FL=3;
+  //defualt Filter settings see pixie manual
+  Double_t FL=2;
   Double_t FG=1;
   int CFD_delay=2; //in clock ticks
   Double_t CFD_scale_factor =0.5;
@@ -224,7 +224,7 @@ int main(int argc, char **argv){
     maxentry=nentry;
   
   if (makeTraces)
-    maxentry=5;//cap off the number of entries for explict trace making
+    maxentry=100;//cap off the number of entries for explict trace making
 
 
 
@@ -316,9 +316,9 @@ int main(int argc, char **argv){
  
     Double_t sum=0;
     Double_t signalTotalIntegral=0;
-    for ( int i=0 ;i<20;i++)
+    for ( int i=0 ;i<10;i++)
       sum = sum + trace[i]+trace[trace.size()-1-i];
-    sum = sum/40; // average of first and last 20 points should be pretty good background
+    sum = sum/20; // average of first and last 20 points should be pretty good background
     for (int i=0;i< (int) trace.size();++i) {
       signalTotalIntegral = trace[i]+ signalTotalIntegral;
     }
@@ -327,9 +327,11 @@ int main(int argc, char **argv){
     else{
       thisEventsIntegral = -1002;
     }
-
+    
+    
+    
     integrals[chanid] = thisEventsIntegral;
-
+    
     
     Double_t thresh=10;
 
@@ -367,14 +369,14 @@ int main(int argc, char **argv){
 		  previousEvents[firstSpot+1+q].channel*previousEvents[secondSpot].channel) &&
 		 (TMath::Abs(avg2-avg1) < 10.0)) {
 	      //Victory
-	      cout<<"Victory"<<endl;
+	      /*	      cout<<"Victory"<<endl;
 	      cout<<"*************"<<endl;
 	      cout<<"Time diff "<<avg2-avg1<<endl;
 	      cout<<"firstSpot "<<firstSpot<<" q "<<q<< " secondSpot "<<secondSpot<<endl;
 	      cout<<"Channels are "<<previousEvents[0].channel<<" "<<previousEvents[firstSpot].channel<<
 		" and "<<previousEvents[firstSpot+1+q].channel << " "<<previousEvents[secondSpot].channel<<endl;
 	      //int t;cin>>t;
-	     
+	      */
 	      if (q!=0 || firstSpot!=1)
 		cout<<"q "<<q<<" "<<firstSpot<<endl;
 	      
@@ -407,7 +409,7 @@ int main(int argc, char **argv){
 	      }
 	      
 
-	      timeDiff=avg2-avg1;
+	      timeDiff=TMath::Abs(avg2-avg1);
 	      q=1000;//kill outer loop
 	    }
 	  }

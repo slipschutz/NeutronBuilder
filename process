@@ -80,9 +80,9 @@ done
 
 
 if [ $allGood -eq 1 ]; then
-    echo "All the root files have been copied to sam_analysis"
+    echo "All the root files have been linked to sam_analysis"
 elif [ $allGood -ne 1 ]; then 
-    echo "Need to copy over the files"
+    echo "Need to make links for the files"
 
     for ((i=0;i<$num;i++)); do
 	if [ $i -lt 10 ]; then
@@ -93,9 +93,9 @@ elif [ $allGood -ne 1 ]; then
 
 	if [ -f ../rootfiles/${file} ]  && [ ! -f ./${file} ]; then
 
-	    echo "This file  needs to be copied " $file
-	    echo "Copying..."
-	    cp -f ../rootfiles/${file} .
+	    echo "This file needs a link: " $file
+	    echo "Linking..."
+	    ln -s ../rootfiles/${file} ./${file}
 	fi
     done
 fi

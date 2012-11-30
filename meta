@@ -41,7 +41,7 @@ for ((FL=2;FL<5;FL++)); do
     	for ((d=1;d<3;d++));do
 	    
 	    ./EvtBuilder $runNum $numFiles $FL $FG $d 0.5 &> log_${runNum}_${FL}_${FG}_${d} &
-	  
+	    
 done
 
 
