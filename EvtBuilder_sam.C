@@ -150,7 +150,6 @@ int main(int argc, char **argv){
     TString s = fileMan->loadFile(runNum,0);//new TFile(fileName.str().c_str(),"read");
     inT->Add(s);
   } else {
-    
     for (Int_t i=0;i<numFiles;i++) {
       TString s = fileMan->loadFile(runNum,i);
       inT->Add(s);
@@ -178,6 +177,7 @@ int main(int argc, char **argv){
       cout << "\nCould not create flt Tree in " << fileMan->outputFileName.str() << endl;
       exit(-1);
     }
+
 
 
   // original

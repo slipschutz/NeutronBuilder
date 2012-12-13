@@ -32,6 +32,9 @@ TString FileManager::loadFile(Int_t runNum,Int_t fileNum) {
     cout<<"Update run number parsing"<<endl; return "Crap";
   }
 
+  
+  outputFileName << fileName.str();
+
   if (fileNum < 10){
     fileName<<"-0"<<fileNum;
   }else if (fileNum >=10 ){
@@ -39,11 +42,9 @@ TString FileManager::loadFile(Int_t runNum,Int_t fileNum) {
   }
     
 
-  outputFileName << fileName.str()<<"-output.root"; //For later                                                                                              
   fileName << ".root";
   
   cout<<"Loading file "<<fileName.str()<<"..."<<endl;
-  
   
   
   return fileName.str();
@@ -52,7 +53,10 @@ TString FileManager::loadFile(Int_t runNum,Int_t fileNum) {
 }
 
 TFile * FileManager::getOutputFile(){
- 
+
+
+  outputFileName << "-00-output.root";
+
   TFile * temp = new TFile(outputFileName.str().c_str(),"recreate");
    
   if(!temp)
