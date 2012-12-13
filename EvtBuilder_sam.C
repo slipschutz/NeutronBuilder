@@ -39,10 +39,6 @@ struct Sl_Event {
   Double_t integral;
 };
 
-
-
-#define macro(x,y) x+y
-
 using namespace std;
 
 //int main(Int_t runNum=0,Long64_t maxentry=-1,Bool_t makeTraces=false){
@@ -59,30 +55,72 @@ int main(int argc, char **argv){
 
   //defualt Filter settings see pixie manual
   Double_t FL=2;
-  Double_t FG=1;
-  int CFD_delay=2; //in clock ticks
-  Double_t CFD_scale_factor =0.5;
+  Double_t FG=0;
+  int CFD_delay=8; //in clock ticks
+  Double_t CFD_scale_factor =0.25;
 
   
   if (argc == 1 ){
-    cout<<"Usage: ./EvtBuilder runNumber optionString"<<endl;
+    cout<<"Usage: ./EvtBuilder runNumber [numFiles] [optionString]"<<endl;
     return -1;
   } else if ( argc == 2 ) {
     //no options 
     //use defualts from above
     runNum = (Int_t) atoi(argv[1]);
+    if ( runNum == 0 ){
+      cout<<"Run Number needs to be an integer"<<endl;
+      return -1;
+    }
+
   } else if ( argc == 3 )  {
-    
-    cout<<"TheOptions are "<<argv[2]<<endl;
+    //
+    // could be ./EvtBuilder runNum numFiles
+    // or
+    //
+    //  ./EvtBuilder runNum traces/internalCFD/otherOption
+
+
+    //run Num is going to be the first option
     runNum = (Int_t) atoi(argv[1]);
-    if ( (string) argv[2] == "traces")
+    if ( runNum == 0 ){
+      cout<<"Run Number needs to be an integer"<<endl;
+      return -1;
+    }
+
+
+    
+    if ( atoi(argv[2]) == 0 ) {
+      //no number of files given assume
+      //there is one file
+      //and it must the second option from above
+      numFiles=1;
+      
+      if ( (string) argv[2] == "traces")
+	makeTraces=true;
+      else if ( (string) argv[2] == "internalCFD")
+	useSoftwareFilters=false;
+    } else {
+      // the first option from above
+      numFiles= atoi(argv[2]);
+    }
+  } else if (argc == 4){
+    // ./EvtBuilder runNum numFiles options
+
+    runNum = (Int_t) atoi(argv[1]);
+    numFiles = (Int_t) atoi(argv[2]);
+    
+    if (numFiles == 0 ){
+      cout<<"Invalid options"<<endl;
+      return -1;
+    }
+    //options at [3] now
+    if ( (string) argv[3] == "traces")
       makeTraces=true;
-    else if ( argv[2] > 0 )
-      {
-	//has several files
-	numFiles = atoi( argv[2]);
-	cout<<"numFiles is "<<numFiles<<endl;
-      }
+    else if ( (string) argv[3] == "internalCFD")
+      useSoftwareFilters=false;
+
+
+
 
   } else if (argc == 7){
     runNum = (Int_t) atoi(argv[1]);
@@ -100,7 +138,7 @@ int main(int argc, char **argv){
     extFlag=true;
   }
 
-
+  
   TFile *inFile=0;
   TFile *outFile=0;
   TTree  *outT;
@@ -409,16 +447,18 @@ int main(int argc, char **argv){
 	      }
 	      
 
-	      timeDiff=TMath::Abs(avg2-avg1);
+	      timeDiff=TMath::Abs(avg2-avg1)+5;
 	      q=1000;//kill outer loop
 	    }
 	  }
 	}
       }
   
-    if (softwareCFD != -1002) {
+    if (softwareCFD != -1002 || useSoftwareFilters == false) {
       //Keep the previous event info for correlating
-      time = softwareCFD + timelow+timehigh * 4294967296.0;
+      if (useSoftwareFilters)
+	time = softwareCFD + timelow+timehigh * 4294967296.0;
+      
       if (previousEvents.size() < sizeOfRollingWindow  ) 
 	{
 	  Sl_Event e;
