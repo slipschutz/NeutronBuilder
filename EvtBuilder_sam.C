@@ -25,6 +25,9 @@
 
 #include "TChain.h"
 
+#define BAD_NUM -10008
+
+
 Bool_t checkChannels(Int_t a,Int_t b){
   if (TMath::Abs(a-b) == 1)
     return true;
@@ -37,6 +40,7 @@ struct Sl_Event {
   Int_t channel;
   Double_t time;
   Double_t integral;
+  Double_t softwareCFD;
 };
 
 using namespace std;
@@ -56,7 +60,7 @@ int main(int argc, char **argv){
   //defualt Filter settings see pixie manual
   Double_t FL=2;
   Double_t FG=0;
-  int CFD_delay=8; //in clock ticks
+  int CFD_delay=2; //in clock ticks
   Double_t CFD_scale_factor =0.25;
 
   
@@ -79,7 +83,6 @@ int main(int argc, char **argv){
     //
     //  ./EvtBuilder runNum traces/internalCFD/otherOption
 
-
     //run Num is going to be the first option
     runNum = (Int_t) atoi(argv[1]);
     if ( runNum == 0 ){
@@ -87,8 +90,6 @@ int main(int argc, char **argv){
       return -1;
     }
 
-
-    
     if ( atoi(argv[2]) == 0 ) {
       //no number of files given assume
       //there is one file
@@ -118,10 +119,11 @@ int main(int argc, char **argv){
       makeTraces=true;
     else if ( (string) argv[3] == "internalCFD")
       useSoftwareFilters=false;
+    
+    cout<<"Make Traces"<<endl;
 
 
-
-
+    
   } else if (argc == 7){
     runNum = (Int_t) atoi(argv[1]);
     numFiles = (Int_t) atoi(argv[2]);
@@ -254,7 +256,11 @@ int main(int argc, char **argv){
 
   //
   
+  Double_t eventNum;
+  outT->Branch("Jentry",&eventNum,"Jengrty/D");
 
+  Double_t eventTriggerNum;
+  outT->Branch("EventTriggerNum",&eventTriggerNum,"EventTriggerNum/D");
 
 
 
@@ -262,7 +268,7 @@ int main(int argc, char **argv){
     maxentry=nentry;
   
   if (makeTraces)
-    maxentry=100;//cap off the number of entries for explict trace making
+    maxentry=50;//cap off the number of entries for explict trace making
 
 
 
@@ -281,21 +287,25 @@ int main(int argc, char **argv){
   for (Long64_t jentry=0; jentry<maxentry;jentry++) { // Main analysis loop
     
     inT->GetEntry(jentry); // Get the event from the input tree 
-    
+    eventNum=jentry;
+
+    eventTriggerNum=0;//its 0 when there is no correlated event found on this loop
+    //set to one below if there was a correlated event fround in the 
+    //previous set of events (sizeOfRollingWindow)
 
     ///////////////////////////////////////////////////////////////////////////////////////////
     timeDiffRaw=0;     //TimeDiffRaw is just the difference between the previous event and
                        //the current one
-    timeDiff = -1002;  //make it something random to distinguish uncorrleated events  
-    softwareCFD = -1002;//ditto
-
-    GravityOfEnergy1 = -1002;    
-    GravityOfEnergy2 = -1002;    
-    delta_T1 = -1002;
-    delta_T2 = -1002;
-
+    timeDiff = BAD_NUM;  //make it something random to distinguish uncorrleated events  
+    softwareCFD = BAD_NUM;//ditto
+    
+    GravityOfEnergy1 = BAD_NUM;    
+    GravityOfEnergy2 = BAD_NUM;    
+    delta_T1 = BAD_NUM;
+    delta_T2 = BAD_NUM;
+    
     for (Int_t i=0;i<(Int_t) numOfChannels;++i)
-      integrals[i]=-1002; //ditto
+      integrals[i]=BAD_NUM; //ditto
     
     //software genearted filters
     thisEventsCFD.clear();//Clear the CFD vector 
@@ -307,75 +317,59 @@ int main(int argc, char **argv){
 	filters->Reset();
 	CFDs->Reset();
       }
-    ///////////////////////////////////////////////////////////////////////////////////////////
     
-    ///FAKE TRACE TEST
-    /*    for (Int_t q=1;q<=200;++q){
-      if (q<40)
-	trace[q]=0;
-      else{
-	//	cout<<200*TMath::Exp(-(q-100)/10.0)<<endl;
-	trace[q]=200*TMath::Exp(-(q-40)/40.0);
-      }
-     
-    }
-    */
-
-    ///////////////////////////////////////////////////////////////////////////////////////////
-
-
     //Time_diff raw 
     timeDiffRaw = time - prevTime;
     prevTime = time;
     ///
-    
     if(useSoftwareFilters){
       
       theFilter.FastFilter(trace,thisEventsFF,FL,FG);
       //theFilter.FastFilterFull(trace,thisEventsFF,FL,FG,40);
-      
-      if (makeTraces)	{
+      if (makeTraces )	{
 	for (int i=0;i< (int) trace.size();i++) {
 	  traces->Fill(i,trace[i]);	
 	  filters->Fill(i, thisEventsFF[i]);
 	}
       }
-      
       thisEventsCFD = theFilter.CFD(thisEventsFF,CFD_delay,CFD_scale_factor);
-
       softwareCFD = theFilter.GetZeroCrossing(thisEventsCFD);
- 
       if (makeTraces){
 	for (Int_t j=0;j<(Int_t) thisEventsCFD.size();++j)
 	  CFDs->Fill(j,thisEventsCFD[j]);
       }
     }
-     
- 
+
+
     Double_t sum=0;
     Double_t signalTotalIntegral=0;
     for ( int i=0 ;i<10;i++)
       sum = sum + trace[i]+trace[trace.size()-1-i];
-    sum = sum/20; // average of first and last 20 points should be pretty good background
+    sum = sum/20; // average of first and last 10 points should be pretty good background
     for (int i=0;i< (int) trace.size();++i) {
       signalTotalIntegral = trace[i]+ signalTotalIntegral;
     }
     if (  signalTotalIntegral - sum *trace.size() > 0 ) 
       thisEventsIntegral = signalTotalIntegral - sum *trace.size();
     else{
-      thisEventsIntegral = -1002;
+      thisEventsIntegral = BAD_NUM;
     }
-    
-    
-    
+    //set the energy in the filterd tree
     integrals[chanid] = thisEventsIntegral;
-    
-    
     Double_t thresh=10;
-
+    
     if ( previousEvents.size() >= sizeOfRollingWindow )
       {
-
+	/*	cout<<endl<<"*****"<<endl;
+	for (Int_t j=0;j<sizeOfRollingWindow;j++){
+	  
+	  cout<<"Channel "<<previousEvents[j].channel<<endl;
+	  cout<<"Time "<<previousEvents[j].time<<endl;
+	  cout<<"Integral "<<previousEvents[j].integral<<endl;
+	  cout<<"Software CFD "<<previousEvents[j].softwareCFD<<endl;
+	}
+	int t;cin>>t;
+	*/
 	for (Int_t q=0;q<3;++q){	
 	  Int_t firstSpot=-1;
 	  Int_t secondSpot=-1;
@@ -406,14 +400,16 @@ int main(int argc, char **argv){
 	    if ( (previousEvents[0].channel*previousEvents[firstSpot].channel !=
 		  previousEvents[firstSpot+1+q].channel*previousEvents[secondSpot].channel) &&
 		 (TMath::Abs(avg2-avg1) < 10.0)) {
+	      //	      cout<<"jentry is "<<jentry<<endl;
+
 	      //Victory
-	      /*	      cout<<"Victory"<<endl;
+	      /*cout<<"Victory"<<endl;
 	      cout<<"*************"<<endl;
 	      cout<<"Time diff "<<avg2-avg1<<endl;
 	      cout<<"firstSpot "<<firstSpot<<" q "<<q<< " secondSpot "<<secondSpot<<endl;
 	      cout<<"Channels are "<<previousEvents[0].channel<<" "<<previousEvents[firstSpot].channel<<
 		" and "<<previousEvents[firstSpot+1+q].channel << " "<<previousEvents[secondSpot].channel<<endl;
-	      //int t;cin>>t;
+	      //	      int t;cin>>t;
 	      */
 	      if (q!=0 || firstSpot!=1)
 		cout<<"q "<<q<<" "<<firstSpot<<endl;
@@ -446,7 +442,7 @@ int main(int argc, char **argv){
 		GravityOfEnergy2 =-1*GravityOfEnergy2;
 	      }
 	      
-
+	      eventTriggerNum=1;
 	      timeDiff=TMath::Abs(avg2-avg1)+5;
 	      q=1000;//kill outer loop
 	    }
@@ -454,7 +450,7 @@ int main(int argc, char **argv){
 	}
       }
   
-    if (softwareCFD != -1002 || useSoftwareFilters == false) {
+
       //Keep the previous event info for correlating
       if (useSoftwareFilters)
 	time = softwareCFD + timelow+timehigh * 4294967296.0;
@@ -465,6 +461,7 @@ int main(int argc, char **argv){
 	  e.channel=chanid;
 	  e.time = time;
 	  e.integral=thisEventsIntegral;
+	  e.softwareCFD = softwareCFD;
 	  previousEvents.push_back(e);
 	}
       else if (previousEvents.size() >= sizeOfRollingWindow )
@@ -475,10 +472,10 @@ int main(int argc, char **argv){
 	  e.channel=chanid;
 	  e.time=time;
 	  e.integral=thisEventsIntegral;
-	  previousEvents.push_back(e);
-	  
+	  e.softwareCFD = softwareCFD;
+	  previousEvents.push_back(e);	  
 	}
-    }
+  
 
     //Periodic printing
     if (jentry % 10000 == 0 )
