@@ -16,6 +16,7 @@
 #include "TTree.h"
 #include "TString.h"
 #include "TSystem.h"
+#include "TGraph.h"
 
 //Local Headers
 #include "SL_Event.h"
@@ -246,11 +247,14 @@ int main(int argc, char **argv){
   TH2F *filters = new TH2F("filters","The filters",200,0,200,10000,-1000,4000);
   TH2F *CFDs  = new TH2F("CFDs","The CFDs",200,0,200,10000,-1000,1000);
 
+  TGraph * traces2 = new TGraph(200);
+
   if (makeTraces) //adding the branches to the tree slows things down   
     {             //so only do it if you really want them
       outT->Branch("Traces","TH2F",&traces,128000,0);  
       outT->Branch("Filters","TH2F",&filters,12800,0);
       outT->Branch("CFDs","TH2F",&CFDs,12800,0);
+      outT->Branch("Traces2","TGraph",&traces2,128000,0);
     }
   //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -323,17 +327,21 @@ int main(int argc, char **argv){
     prevTime = time;
     ///
     if(useSoftwareFilters){
+
+      softwareCFD = theFilter.fitTrace(trace,jentry);
       
-      theFilter.FastFilter(trace,thisEventsFF,FL,FG);
-      //theFilter.FastFilterFull(trace,thisEventsFF,FL,FG,40);
+      //      theFilter.FastFilter(trace,thisEventsFF,FL,FG);
+      
+//theFilter.FastFilterFull(trace,thisEventsFF,FL,FG,40);
       if (makeTraces )	{
 	for (int i=0;i< (int) trace.size();i++) {
 	  traces->Fill(i,trace[i]);	
+	  traces2->SetPoint(i,i,trace[i]);
 	  filters->Fill(i, thisEventsFF[i]);
 	}
       }
-      thisEventsCFD = theFilter.CFD(thisEventsFF,CFD_delay,CFD_scale_factor);
-      softwareCFD = theFilter.GetZeroCrossing(thisEventsCFD);
+      //  thisEventsCFD = theFilter.CFD(thisEventsFF,CFD_delay,CFD_scale_factor);
+      // softwareCFD = theFilter.GetZeroCrossing(thisEventsCFD);
       if (makeTraces){
 	for (Int_t j=0;j<(Int_t) thisEventsCFD.size();++j)
 	  CFDs->Fill(j,thisEventsCFD[j]);
@@ -443,7 +451,7 @@ int main(int argc, char **argv){
 	      }
 	      
 	      eventTriggerNum=1;
-	      timeDiff=TMath::Abs(avg2-avg1)+5;
+	      timeDiff=avg2-avg1+5;
 	      q=1000;//kill outer loop
 	    }
 	  }

@@ -19,7 +19,7 @@ all: $(EXECUTABLE)
 
 $(EXECUTABLE) : $(OBJECTS) $(MAINO)
 	@echo "Building target" $@ "..." 
-	@$(CXX) $(LDFLAGS) $(LDLIBS) -o $@ $(OBJECTS) $(MAINO)
+	@$(CXX) $(LDFLAGS) -o $@ $(OBJECTS) $(MAINO) $(LDLIBS)
 	@echo
 	@echo "Build succeed"
 

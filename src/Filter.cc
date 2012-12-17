@@ -8,7 +8,10 @@
 
 #include "TFile.h"
 #include "TMath.h"
+#include "TGraph.h"
+#include "TFitResult.h"
 
+using namespace std;
 
 Filter::Filter()
 {
@@ -163,4 +166,54 @@ Double_t Filter::GetZeroCrossing(std::vector <Double_t> & CFD){
 
 
   return thisEventsZeroCrossings[0]; // take the first one
+}
+
+
+Double_t Filter::fitTrace(std::vector <UShort_t> & trace,Double_t num){
+
+  Int_t size = (Int_t) trace.size();
+  std::vector <Double_t> y_values,x_values;
+
+  //find background
+  Double_t sum=0;
+  for (Int_t i=0;i<10;++i)
+    sum=sum+trace[i]+trace[trace.size()-i];
+  sum=sum/20.0;
+  
+
+
+  for ( Int_t i=0;i < size;++i){
+    y_values.push_back( (double_t) trace[i] - sum );
+    x_values.push_back( (Double_t) i);
+    
+  }
+
+  //Find Maximum 
+
+  Double_t max=0;
+  Int_t maxBin=-1;
+  for (Int_t i=0;i <size;++i){
+    if (y_values[i] > max){
+      max = y_values[i];
+      maxBin=i;
+    }
+  }
+
+ 
+
+  Int_t fitWindowWidth=4;  //plus or minus 4 bins on either side of max
+  //to be taken into acount during fit
+  Double_t mu=-1000;
+
+  if ( max >0 ){
+    TGraph * gr = new TGraph(size,x_values.data(),y_values.data());
+    TFitResultPtr fitPointer = gr->Fit("gaus","S0Q","",maxBin-fitWindowWidth,maxBin+fitWindowWidth);
+    mu =fitPointer->Value(1);
+    gr->Delete();
+  } 
+  
+
+  
+  return mu;
+
 }
