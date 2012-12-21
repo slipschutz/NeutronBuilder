@@ -2,7 +2,8 @@ CXX=`root-config --cxx`
 CFLAGS=-c -g -Wall `root-config --cflags` -I./src -I ./include
 LDLIBS=`root-config --glibs`
 LDFLAGS=`root-config --ldflags`
-SOURCES=./src/SL_Event.cc ./src/FileManager.cc ./src/Filter.cc
+#SOURCES=./src/SL_Event.cc ./src/FileManager.cc ./src/Filter.cc
+SOURCES=$(shell ls ./src/*.cc)
 OBJECTS=$(SOURCES:.cc=.o) 
 MAIN=EvtBuilder_sam.C
 MAINO=./src/EvtBuilder_sam.o
@@ -52,4 +53,5 @@ clean:
 	-rm ./$(MAINO)
 
 test:
+	@echo $(SOURCES)
 	@echo $(OBJECTS)

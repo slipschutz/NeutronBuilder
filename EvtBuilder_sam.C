@@ -21,8 +21,9 @@
 //Local Headers
 #include "SL_Event.h"
 #include "Filter.hh"
-
 #include "FileManager.h"
+#include "InputManager.hh"
+
 
 #include "TChain.h"
 
@@ -49,13 +50,26 @@ using namespace std;
 //int main(Int_t runNum=0,Long64_t maxentry=-1,Bool_t makeTraces=false){
 int main(int argc, char **argv){
 
-  Int_t runNum=-1;
-  Int_t numFiles=-1;
+  vector <string> inputs;
+  for (int i=1;i<argc;++i){
+    inputs.push_back(string(argv[i]));
+  }
+
+  InputManager theInputManager;
+
+  if ( !  theInputManager.loadInputs2(inputs) )
+    return 0;
+
+
+
+  Int_t runNum=theInputManager.runNum;
+  Int_t numFiles=theInputManager.numFiles;
 
   Long64_t maxentry=-1;
-  Bool_t makeTraces=false;
+
+  Bool_t makeTraces=theInputManager.makeTraces;
   Bool_t useSoftwareFilters=true;
-  Bool_t extFlag=false;
+  Bool_t extFlag=false;//need to add meta run inputs to inputmanager
 
 
   //defualt Filter settings see pixie manual
@@ -64,82 +78,8 @@ int main(int argc, char **argv){
   int CFD_delay=2; //in clock ticks
   Double_t CFD_scale_factor =0.25;
 
+
   
-  if (argc == 1 ){
-    cout<<"Usage: ./EvtBuilder runNumber [numFiles] [optionString]"<<endl;
-    return -1;
-  } else if ( argc == 2 ) {
-    //no options 
-    //use defualts from above
-    runNum = (Int_t) atoi(argv[1]);
-    if ( runNum == 0 ){
-      cout<<"Run Number needs to be an integer"<<endl;
-      return -1;
-    }
-
-  } else if ( argc == 3 )  {
-    //
-    // could be ./EvtBuilder runNum numFiles
-    // or
-    //
-    //  ./EvtBuilder runNum traces/internalCFD/otherOption
-
-    //run Num is going to be the first option
-    runNum = (Int_t) atoi(argv[1]);
-    if ( runNum == 0 ){
-      cout<<"Run Number needs to be an integer"<<endl;
-      return -1;
-    }
-
-    if ( atoi(argv[2]) == 0 ) {
-      //no number of files given assume
-      //there is one file
-      //and it must the second option from above
-      numFiles=1;
-      
-      if ( (string) argv[2] == "traces")
-	makeTraces=true;
-      else if ( (string) argv[2] == "internalCFD")
-	useSoftwareFilters=false;
-    } else {
-      // the first option from above
-      numFiles= atoi(argv[2]);
-    }
-  } else if (argc == 4){
-    // ./EvtBuilder runNum numFiles options
-
-    runNum = (Int_t) atoi(argv[1]);
-    numFiles = (Int_t) atoi(argv[2]);
-    
-    if (numFiles == 0 ){
-      cout<<"Invalid options"<<endl;
-      return -1;
-    }
-    //options at [3] now
-    if ( (string) argv[3] == "traces")
-      makeTraces=true;
-    else if ( (string) argv[3] == "internalCFD")
-      useSoftwareFilters=false;
-    
-    cout<<"Make Traces"<<endl;
-
-
-    
-  } else if (argc == 7){
-    runNum = (Int_t) atoi(argv[1]);
-    numFiles = (Int_t) atoi(argv[2]);
-    FL = (Double_t) atoi(argv[3]);
-    FG = (Double_t) atoi(argv[4]);
-    CFD_delay = (Double_t) atoi(argv[5]);
-    CFD_scale_factor = (Double_t) atof(argv[6]);
-
-    cout<<"FL "<<FL<<endl;
-    cout<<"FG "<<FG<<endl;
-    cout<<"D "<<CFD_delay<<endl;
-    cout<<"CFD_scale_factor "<<CFD_scale_factor<<endl;
-
-    extFlag=true;
-  }
 
   
   TFile *inFile=0;
@@ -335,29 +275,28 @@ int main(int argc, char **argv){
     timeDiffRaw = time - prevTime;
     prevTime = time;
     ///
-    if(useSoftwareFilters){
-
-      softwareCFD = theFilter.fitTrace(trace,jentry);
-      
-      //      theFilter.FastFilter(trace,thisEventsFF,FL,FG);
-      
-//theFilter.FastFilterFull(trace,thisEventsFF,FL,FG,40);
-      if (makeTraces )	{
-	for (int i=0;i< (int) trace.size();i++) {
-	  traces->Fill(i,trace[i]);	
-	  traces2->SetPoint(i,i,trace[i]);
-	  filters->Fill(i, thisEventsFF[i]);
+    if(theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "traces"){
+      if(theInputManager.timingMode == "traces" ){
+	softwareCFD = theFilter.fitTrace(trace,jentry);
+      } else {
+	theFilter.FastFilter(trace,thisEventsFF,FL,FG);
+	//theFilter.FastFilterFull(trace,thisEventsFF,FL,FG,40);
+	if (makeTraces )	{
+	  for (int i=0;i< (int) trace.size();i++) {
+	    traces->Fill(i,trace[i]);	
+	    traces2->SetPoint(i,i,trace[i]);
+	    filters->Fill(i, thisEventsFF[i]);
+	  }
+	}
+        thisEventsCFD = theFilter.CFD(thisEventsFF,CFD_delay,CFD_scale_factor);
+	softwareCFD = theFilter.GetZeroCrossing(thisEventsCFD);
+	if (makeTraces){
+	  for (Int_t j=0;j<(Int_t) thisEventsCFD.size();++j)
+	    CFDs->Fill(j,thisEventsCFD[j]);
 	}
       }
-      //  thisEventsCFD = theFilter.CFD(thisEventsFF,CFD_delay,CFD_scale_factor);
-      // softwareCFD = theFilter.GetZeroCrossing(thisEventsCFD);
-      if (makeTraces){
-	for (Int_t j=0;j<(Int_t) thisEventsCFD.size();++j)
-	  CFDs->Fill(j,thisEventsCFD[j]);
-      }
     }
-
-
+    
     Double_t sum=0;
     Double_t signalTotalIntegral=0;
     for ( int i=0 ;i<10;i++)
