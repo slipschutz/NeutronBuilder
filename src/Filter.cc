@@ -10,6 +10,7 @@
 #include "TMath.h"
 #include "TGraph.h"
 #include "TFitResult.h"
+#include "TF1.h"
 
 using namespace std;
 
@@ -174,23 +175,15 @@ Double_t Filter::fitTrace(std::vector <UShort_t> & trace,Double_t num){
   Int_t size = (Int_t) trace.size();
   std::vector <Double_t> y_values,x_values;
 
-  //find background
-  Double_t sum=0;
-  for (Int_t i=0;i<10;++i)
-    sum=sum+trace[i]+trace[trace.size()-i];
-  sum=sum/20.0;
-  
-
 
   for ( Int_t i=0;i < size;++i){
-    y_values.push_back( (double_t) trace[i] - sum );
+    y_values.push_back( (double_t) trace[i]  );
     x_values.push_back( (Double_t) i);
     
   }
 
   //Find Maximum 
-
-  Double_t max=0;
+  Double_t max=-1;
   Int_t maxBin=-1;
   for (Int_t i=0;i <size;++i){
     if (y_values[i] > max){
@@ -198,22 +191,44 @@ Double_t Filter::fitTrace(std::vector <UShort_t> & trace,Double_t num){
       maxBin=i;
     }
   }
-
- 
-
-  Int_t fitWindowWidth=4;  //plus or minus 4 bins on either side of max
+  //Set up fit function
+  Double_t base=300;
+  Double_t A =0;
+  Int_t fitWindowWidth=10;  //plus or minus 5 bins on either side of max
   //to be taken into acount during fit
   Double_t mu=-1000;
 
-  if ( max >0 ){
-    TGraph * gr = new TGraph(size,x_values.data(),y_values.data());
-    TFitResultPtr fitPointer = gr->Fit("gaus","S0Q","",maxBin-fitWindowWidth,maxBin+fitWindowWidth);
-    mu =fitPointer->Value(1);
-    gr->Delete();
-  } 
-  
+  TF1 *myfit = new TF1("myfit","[2]+[0]*exp(-0.5*( ((x-[1])/1.7711)^2) )",0,200); 
 
+  myfit->SetParameter(0, 1);
+  myfit->SetParameter(1, 100);
+  myfit->SetParameter(2,300);
+  myfit->SetParLimits(0,0,1000);// Make sure the constant out in front is>0
+
+  
+  //Define the trace as a Tgraph
+  TGraph * gr = new TGraph(size,x_values.data(),y_values.data());
+
+
+  TFitResultPtr fitPointer = gr->Fit("myfit","S0Q",
+				     "",maxBin-fitWindowWidth,maxBin+fitWindowWidth);
+  
+  Int_t fitStatus = fitPointer;//Ridiculous root
+  
+  if ( fitStatus == 0 ) { //no errors in fit
+    mu =fitPointer->Value(1);
+    A=fitPointer->Value(0);
+    base = fitPointer->Value(2);
+  } else {
+    cout<<"***Warning bad fit result retured**"<<endl;
+    cout<<"***jentry is "<<num<<"***"<<endl;
+  }
+  
+  //Detele objects
+  gr->Delete();
+  myfit->Delete();
+
+  
   
   return mu;
-
 }

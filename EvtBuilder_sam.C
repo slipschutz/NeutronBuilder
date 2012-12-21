@@ -241,6 +241,12 @@ int main(int argc, char **argv){
   Double_t GravityOfEnergy2;
   outT->Branch("GravityOfEnergy2",&GravityOfEnergy2,"GravityOfEnergy2/D");
 
+  Double_t GOE1;
+  Double_t GOE2;
+
+  outT->Branch("GOE1",&GOE1,"GOE1/D");
+  outT->Branch("GOE2",&GOE2,"GOE2/D");
+
 
   //Branches for explict trace reconstruction
   TH2F *traces   = new TH2F("traces","This these are the original traces",200,0,200,10000,-1000,1000);
@@ -276,6 +282,7 @@ int main(int argc, char **argv){
 
 
 
+
   Double_t Time_1 =0;
   Double_t Time_2 =0;
   Double_t prevTime =0;
@@ -305,6 +312,8 @@ int main(int argc, char **argv){
     
     GravityOfEnergy1 = BAD_NUM;    
     GravityOfEnergy2 = BAD_NUM;    
+    GOE1=BAD_NUM;
+    GOE2=BAD_NUM;
     delta_T1 = BAD_NUM;
     delta_T2 = BAD_NUM;
     
@@ -441,17 +450,31 @@ int main(int argc, char **argv){
 	      GravityOfEnergy1 = (integrals[1]-integrals[0])/(integrals[0]+integrals[1]);
 	      GravityOfEnergy2 = (integrals[3]-integrals[2])/(integrals[2]+integrals[3]);
 	      
+
+	      Double_t e0,e1,e2,e3; //Gain matched energies matched to chan2
+	      e0 = integrals[0]+182.906;
+	      e1 = integrals[1]+220.97;
+	      e2 = integrals[2];
+	      e3 = integrals[3]+223.688;
+
+	      GOE1 = ( e1 - e0 ) / (e0 + e1 );
+	      GOE2 = ( e3-e2 )/(e2 + e3);
+	      
+	      
 	      if (previousEvents[firstSpot].channel == 2 || previousEvents[firstSpot].channel == 4){
 		delta_T1=-1*delta_T1;//want to always have the same channel minus the the same channel
 		GravityOfEnergy1 =-1*GravityOfEnergy1;
+		GOE1=-1*GOE1;
 	      }
 	      if (previousEvents[secondSpot].channel == 2 || previousEvents[secondSpot].channel == 4){
 		delta_T2=-1*delta_T2;
 		GravityOfEnergy2 =-1*GravityOfEnergy2;
+		GOE2=-1*GOE2;
 	      }
 	      
 	      eventTriggerNum=1;
-	      timeDiff=avg2-avg1+5;
+	      timeDiff=TMath::Abs(avg2-avg1);
+
 	      q=1000;//kill outer loop
 	    }
 	  }
