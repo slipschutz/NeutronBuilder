@@ -57,9 +57,9 @@ int main(int argc, char **argv){
 
   InputManager theInputManager;
 
-  if ( !  theInputManager.loadInputs2(inputs) )
+  if ( !  theInputManager.loadInputs2(inputs) ){
     return 0;
-
+  }
 
 
   Int_t runNum=theInputManager.runNum;
@@ -421,10 +421,12 @@ int main(int argc, char **argv){
       }
   
 
-      //Keep the previous event info for correlating
-      if (useSoftwareFilters)
+
+    //over write the time when in trace fitting mode or software CFD mode
+      if (theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "traces")
 	time = softwareCFD + timelow+timehigh * 4294967296.0;
-      
+
+      //Keep the previous event info for correlating      
       if (previousEvents.size() < sizeOfRollingWindow  ) 
 	{
 	  Sl_Event e;

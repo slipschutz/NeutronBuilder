@@ -21,7 +21,6 @@ public:
   Bool_t loadInputs2(vector <string> &);
 
   Int_t numFiles,runNum;
-  vector <string> options;
 
   Bool_t makeTraces;
   

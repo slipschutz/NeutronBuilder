@@ -20,7 +20,7 @@ InputManager::InputManager()
 
   validTimingModes.push_back("internalCFD");
   validTimingModes.push_back("softwareCFD");
-  validTimingModes.push_back("traces");
+  validTimingModes.push_back("fitting");
 
 }
 InputManager::~InputManager()
@@ -31,82 +31,6 @@ InputManager::~InputManager()
 
 Bool_t InputManager::loadInputs(vector <string> & inputs){
   /*
-  Int_t numOfInputs = (Int_t) inputs.size();
-
-  //look at the inputs 
-  for (Int_t i =0 ;i<numOfInputs;++i){
-    if ( i == 1 )
-      runNum = (int) atoi(inputs[i].c_str());
-    if (i==2 )
-      numFiles = (Int_t) atoi(inputs[i].c_str());
-    if (i>=2)
-      options.push_back( inputs[i]);
-  }
-
-
-  // check types for runNum and numFiles
-
-  if ( runNum == 0 ) {
-    cout<<"runNum "<<endl;
-    return false;
-  }
-  if ( numFiles ==0 && numOfInputs !=3 ){
-    cout<<"numFiles"<<endl;
-    return false;
-  }
- 
-
-
-  
-  if ( numOfInputs == 3 )  {
-    //
-    // could be ./EvtBuilder runNum numFiles
-    // or
-    //
-    //  ./EvtBuilder runNum traces/internalCFD/otherOption
-    
-    if ( numFiles == 0){
-      //no number of files given assume
-      //there is one file
-      //and it must the second option from above
-      numFiles=1;
-      
-      for (int i=0;i<options.size();++i){
-	if ( options[i] == "traces")
-	  useTrace = true;
-	  
-
-      }
-	
-    }  
-  }
-  
-      if ( (string) argv[2] == "traces")
-	makeTraces=true;
-      else if ( (string) argv[2] == "internalCFD")
-	useSoftwareFilters=false;
-    } else {
-      // the first option from above
-      numFiles= atoi(argv[2]);
-    }
-  } else if (argc == 4){
-    // ./EvtBuilder runNum numFiles options
-
-    runNum = (Int_t) atoi(argv[1]);
-    numFiles = (Int_t) atoi(argv[2]);
-    
-    if (numFiles == 0 ){
-      cout<<"Invalid options"<<endl;
-      return -1;
-    }
-    //options at [3] now
-    if ( (string) argv[3] == "traces")
-      makeTraces=true;
-    else if ( (string) argv[3] == "internalCFD")
-      useSoftwareFilters=false;
-    
-    cout<<"Make Traces"<<endl;
-
 
     
   } else if (argc == 7){
@@ -161,7 +85,7 @@ Bool_t InputManager::loadInputs2(vector <string> & inputs){
   else
     runNum = atoi(inputs[0].c_str());
 
-
+  
   if (inputs.size() == 0 ){ // no argumnets display helpful message
     cout<<"Usage: ./EvtBuilder runNumber [numFiles] [optionString]"<<endl;
     return false;
