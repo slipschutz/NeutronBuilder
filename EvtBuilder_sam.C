@@ -386,7 +386,8 @@ int main(int argc, char **argv){
 
               GOE1 = ( e1 - e0 ) / (e0 + e1 );
               GOE2 = ( e3-e2 )/(e2 + e3);
-
+	      
+	      outT->Fill();
 	    }
 	  }
 	/*
@@ -501,7 +502,7 @@ int main(int argc, char **argv){
       cout<<"On event "<<jentry<<endl;
 
     //Fill the tree
-    outT->Fill();
+    //    outT->Fill();
     
   }//End for
 
