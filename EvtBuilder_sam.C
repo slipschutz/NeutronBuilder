@@ -27,6 +27,12 @@
 
 #define BAD_NUM -10008
 
+struct Sl_Event {
+  Int_t channel;
+  Double_t time;
+  Double_t integral;
+  Double_t softwareCFD;
+};
 
 Bool_t checkChannels(Int_t a,Int_t b){
   if (TMath::Abs(a-b) == 1)
@@ -35,13 +41,31 @@ Bool_t checkChannels(Int_t a,Int_t b){
     return false;
 }
 
+Bool_t checkChannels(vector <Sl_Event> &in){
 
-struct Sl_Event {
-  Int_t channel;
-  Double_t time;
-  Double_t integral;
-  Double_t softwareCFD;
-};
+  vector <Bool_t> ch(10,false);  //to make this work with different cable arrangements
+  
+
+  for (int i=0;i<in.size();i++){
+    ch[in[i].channel]=true;
+  }
+  // if it was a good event there should be 4 trues
+  int count=0;
+  for (int i=0;i <ch.size();i++){
+    if (ch[i]==true){
+      count++;
+    }
+  }
+  
+  if (count == 4)
+    return true;
+  else 
+    return false;
+
+}
+
+
+
 
 using namespace std;
 
@@ -150,7 +174,7 @@ int main(int argc, char **argv){
   Int_t numOfChannels=4;
 
   vector <Sl_Event> previousEvents;
-  Double_t sizeOfRollingWindow=6;
+  Double_t sizeOfRollingWindow=4;
   
   //Out put tree branches 
   Double_t timeDiff;
@@ -310,12 +334,63 @@ int main(int argc, char **argv){
     }
     //set the energy in the filterd tree
 
-    integrals[chanid] = thisEventsIntegral;
-
-
     
     if ( previousEvents.size() >= sizeOfRollingWindow )
       {
+
+	if ( checkChannels(previousEvents) )
+	  { // there are all four channels
+	    //bar 12 channels 0,1
+	    //bar 24 channels 2,3
+	    //for cable arrangement independance
+	    vector <Double_t> times_extra(10,0);
+	    vector <Double_t> times; // there are only 4 channels
+	    vector <Double_t> integrals_extra(10,0);
+	    vector <Double_t> integrals_ordered;
+
+	    for (Int_t i=0;i<previousEvents.size();i++){
+	      times_extra[previousEvents[i].channel]=previousEvents[i].time;
+	      integrals_extra[previousEvents[i].channel]=previousEvents[i].integral;
+	    }
+	    for (int i=0;i<times_extra.size();i++){
+	      if (times_extra[i]!=0 && integrals_extra[i]!=0){
+		times.push_back(times_extra[i]);
+		integrals_ordered.push_back(integrals_extra[i]);//can't use branch
+	      }//variable here because it has to already be defined and set to a size
+	    }
+	    
+
+	    if (TMath::Abs ( (times[0]+times[1]-times[2]-times[3])/2 ) <10.0){
+	      //Good event
+	      
+	      timeDiff = (times[0]+times[1]-times[2]-times[3])/2 +10;
+	      
+	      for (int q=0;q<integrals_ordered.size();q++)
+		integrals[q]=integrals_ordered[q];//assign the values to the branch var
+	      //since the channels are ordered.  the integrals[0] will always bee the same channel
+	      //so I don't need to check;
+
+	      
+	      delta_T1 =  times[1]-times[0];
+              delta_T2 =  times[3]-times[2];
+
+              GravityOfEnergy1 = (integrals[1]-integrals[0])/(integrals[0]+integrals[1]);
+              GravityOfEnergy2 = (integrals[3]-integrals[2])/(integrals[2]+integrals[3]);
+
+
+              Double_t e0,e1,e2,e3; //Gain matched energies matched to chan2
+              e0 = integrals[0]+182.906;
+              e1 = integrals[1]+220.97;
+              e2 = integrals[2];
+              e3 = integrals[3]+223.688;
+
+              GOE1 = ( e1 - e0 ) / (e0 + e1 );
+              GOE2 = ( e3-e2 )/(e2 + e3);
+
+	    }
+	  }
+	/*
+
 	for (Int_t q=0;q<3;++q){	
 	  Int_t firstSpot=-1;
 	  Int_t secondSpot=-1;
@@ -346,7 +421,7 @@ int main(int argc, char **argv){
 	    if ( (previousEvents[0].channel*previousEvents[firstSpot].channel !=
 		  previousEvents[firstSpot+1+q].channel*previousEvents[secondSpot].channel) &&
 		 (TMath::Abs(avg2-avg1) < 10.0)) {
-
+	      
 	      if (q!=0 || firstSpot!=1)
 		cout<<"q "<<q<<" "<<firstSpot<<endl;
 	      integrals[previousEvents[0].channel] = previousEvents[0].integral;
@@ -366,7 +441,7 @@ int main(int argc, char **argv){
 	      e1 = integrals[1]+220.97;
 	      e2 = integrals[2];
 	      e3 = integrals[3]+223.688;
-
+	      
 	      GOE1 = ( e1 - e0 ) / (e0 + e1 );
 	      GOE2 = ( e3-e2 )/(e2 + e3);
 	      
@@ -390,8 +465,8 @@ int main(int argc, char **argv){
 	  }
 	}
       }
-  
-
+	*/
+      }
 
     //over write the time when in trace fitting mode or software CFD mode
     if (theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "fitting")
