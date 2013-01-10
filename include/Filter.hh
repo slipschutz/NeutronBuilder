@@ -29,6 +29,8 @@ public:
   
   Double_t GetZeroCrossing(std::vector <Double_t> &);
 
-  Double_t fitTrace(std::vector <UShort_t> &,Double_t );
+  Double_t fitTrace(std::vector <UShort_t> &,Double_t, Double_t );
+
+  Double_t numOfBadFits;
 
 };

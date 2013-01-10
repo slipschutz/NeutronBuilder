@@ -14,9 +14,20 @@ InputManager::InputManager()
 {
   //set defualts
   runNum=-1;
-  numFiles=-1;
+  numFiles=1;//assume 1 file
   timingMode="softwareCFD";
   makeTraces=false;
+
+  //defualt Filter settings see pixie manual
+  FL=2;
+  FG=1;
+  d=2; //in clock ticks
+  w =0.25;
+  ext_flag=false;//defualt to none meta run format
+
+  sigma=1.0;
+
+  ext_sigma_flag=false;
 
   validTimingModes.push_back("internalCFD");
   validTimingModes.push_back("softwareCFD");
@@ -28,29 +39,6 @@ InputManager::~InputManager()
 
 }
 
-
-Bool_t InputManager::loadInputs(vector <string> & inputs){
-  /*
-
-    
-  } else if (argc == 7){
-    runNum = (Int_t) atoi(argv[1]);
-    numFiles = (Int_t) atoi(argv[2]);
-    FL = (Double_t) atoi(argv[3]);
-    FG = (Double_t) atoi(argv[4]);
-    CFD_delay = (Double_t) atoi(argv[5]);
-    CFD_scale_factor = (Double_t) atof(argv[6]);
-
-    cout<<"FL "<<FL<<endl;
-    cout<<"FG "<<FG<<endl;
-    cout<<"D "<<CFD_delay<<endl;
-    cout<<"CFD_scale_factor "<<CFD_scale_factor<<endl;
-
-    extFlag=true;
-  }
-
-  */
-}
 
 
 
@@ -73,7 +61,7 @@ vector <string> InputManager::split(const string &s, char delim) {
 
 
 
-Bool_t InputManager::loadInputs2(vector <string> & inputs){
+Bool_t InputManager::loadInputs(vector <string> & inputs){
 
   vector <string> flags;
   vector <string> arguments;
@@ -86,19 +74,15 @@ Bool_t InputManager::loadInputs2(vector <string> & inputs){
     runNum = atoi(inputs[0].c_str());
 
   
-  if (inputs.size() == 0 ){ // no argumnets display helpful message
-    cout<<"Usage: ./EvtBuilder runNumber [numFiles] [optionString]"<<endl;
-    return false;
-  }  
   
-  for (int i =1;i<inputs.size();++i){
+  for (int i =1;i<(int) inputs.size();++i){
     
     temp = split(inputs[i],':');
     flags.push_back(temp[0]);
     arguments.push_back(temp[1]);
   }
   
-  for (int i=0;i<flags.size();++i){
+  for (int i=0;i<(int)flags.size();++i){
     
     if (flags[i] == "numFiles")
       numFiles = atoi (arguments[i].c_str() );
@@ -114,15 +98,25 @@ Bool_t InputManager::loadInputs2(vector <string> & inputs){
       }else {
 	cout<<"makeTraces needs to be true or false"<<endl;
 	return false;
-      } 
+      }
+    } else if (flags[i] == "FL"){
+      FL=atof(arguments[i].c_str() );ext_flag=true;
+    } else if (flags[i] == "FG" ){
+      FG=atof(arguments[i].c_str() );ext_flag=true;
+    } else if (flags[i] == "d"){
+      d=atof(arguments[i].c_str() );ext_flag=true;
+    } else if (flags[i] == "w"){
+      w=atof(arguments[i].c_str() );ext_flag=true;
+    } else if (flags[i] == "sigma"){
+      sigma = atof(arguments[i].c_str());ext_sigma_flag=true;
     } else {
       cout<<flags[i] <<" :Unkown option"<<endl;
       return false;
     }  
   }
-
+  
   return checkValues();
-
+  
 }
 
 
@@ -137,7 +131,7 @@ Bool_t InputManager::checkValues()
   if (makeTraces != true && makeTraces != false)
     nothingWrong =false;
   
-  for (int i=0;i<validTimingModes.size();++i){
+  for (int i=0;i<(int)validTimingModes.size();++i){
     if (timingMode == validTimingModes[i])
       timingBool=true;
   }
@@ -148,11 +142,22 @@ Bool_t InputManager::checkValues()
   }
 
 
+
+  if (timingMode != "fitting" && ext_sigma_flag == true ){
+    cout<<"Can't set sigma without setting the timingMode to fitting "<<endl;
+    nothingWrong = false;
+  }
+
+  if (timingMode != "softwareCFD" && ext_flag == true ){
+    cout<<"Can't set filter paramters when timmingMode is not set to softwareCFD"<<endl;
+    nothingWrong=false;
+  }
+
   return nothingWrong;
 }
 
 void InputManager::dumpValidModes(){
   cout<<"The valid timing modes are "<<endl;
-  for (int i=0;i<validTimingModes.size();++i)
+  for (int i=0;i<(int) validTimingModes.size();++i)
     cout<<validTimingModes[i]<<endl;
 }

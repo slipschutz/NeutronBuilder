@@ -1,5 +1,3 @@
- 
-
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -47,20 +45,24 @@ struct Sl_Event {
 
 using namespace std;
 
-//int main(Int_t runNum=0,Long64_t maxentry=-1,Bool_t makeTraces=false){
+
 int main(int argc, char **argv){
 
   vector <string> inputs;
   for (int i=1;i<argc;++i){
     inputs.push_back(string(argv[i]));
   }
-
+  if (inputs.size() == 0 ){ // no argumnets display helpful message
+    cout<<"Usage: ./EvtBuilder runNumber [options:value]"<<endl;
+    return 0;
+  }  
+  
   InputManager theInputManager;
-
-  if ( !  theInputManager.loadInputs2(inputs) ){
+  if ( !  theInputManager.loadInputs(inputs) ){
     return 0;
   }
 
+  Double_t sigma=theInputManager.sigma; // the sigma used in the fitting option
 
   Int_t runNum=theInputManager.runNum;
   Int_t numFiles=theInputManager.numFiles;
@@ -68,29 +70,26 @@ int main(int argc, char **argv){
   Long64_t maxentry=-1;
 
   Bool_t makeTraces=theInputManager.makeTraces;
-  Bool_t useSoftwareFilters=true;
-  Bool_t extFlag=false;//need to add meta run inputs to inputmanager
 
+  Bool_t extFlag=theInputManager.ext_flag;
+  Bool_t ext_sigma_flag=theInputManager.ext_sigma_flag;
 
   //defualt Filter settings see pixie manual
-  Double_t FL=2;
-  Double_t FG=0;
-  int CFD_delay=2; //in clock ticks
-  Double_t CFD_scale_factor =0.25;
+  Double_t FL=theInputManager.FL;
+  Double_t FG=theInputManager.FG;
+  int CFD_delay=theInputManager.d; //in clock ticks
+  Double_t CFD_scale_factor =theInputManager.w;
 
-
-  
-
-  
-  TFile *inFile=0;
+    //prepare files and output tree
+  ////////////////////////////////////////////////////////////////////////////////////
   TFile *outFile=0;
   TTree  *outT;
-
   FileManager * fileMan = new FileManager();
+  fileMan->timingMode = theInputManager.timingMode;
   TChain * inT= new TChain("dchan");
  
   if (numFiles == -1 ){
-    TString s = fileMan->loadFile(runNum,0);//new TFile(fileName.str().c_str(),"read");
+    TString s = fileMan->loadFile(runNum,0);
     inT->Add(s);
   } else {
     for (Int_t i=0;i<numFiles;i++) {
@@ -98,20 +97,21 @@ int main(int argc, char **argv){
       inT->Add(s);
     }
   }
-
-
-  //  inT = (TTree *) inFile->Get("dchan");
-  
   inT->SetMakeClass(1);
   Long64_t nentry=(Long64_t) (inT->GetEntries());
 
   cout <<"The number of entires is : "<< nentry << endl ;
 
   // Openning output Tree and output file
-  if (extFlag == false)
+  if (extFlag == false && ext_sigma_flag==false)
     outFile = fileMan->getOutputFile();
-  else
-    outFile = fileMan->getOutputFile(FL,FG,CFD_delay,CFD_scale_factor);
+  else if (extFlag == true && ext_sigma_flag==false){
+    CFD_scale_factor = CFD_scale_factor/10.0; //bash script does things in whole numbers
+    outFile = fileMan->getOutputFile(FL,FG,CFD_delay,CFD_scale_factor*10);
+  } else if (extFlag==false && ext_sigma_flag==true){
+    sigma=sigma/10;
+    outFile= fileMan->getOutputFile(sigma*10);
+  }
 
   outT = new TTree("flt","Filtered Data Tree --- Comment Description");
   cout << "Creating filtered Tree"<<endl;
@@ -120,10 +120,11 @@ int main(int argc, char **argv){
       cout << "\nCould not create flt Tree in " << fileMan->outputFileName.str() << endl;
       exit(-1);
     }
-
-
-
-  // original
+  ////////////////////////////////////////////////////////////////////////////////////
+  
+  
+  // set input tree branvh variables and addresses
+  ////////////////////////////////////////////////////////////////////////////////////
   Int_t chanid;
   vector<UShort_t> trace;
   UInt_t fUniqueID;
@@ -132,9 +133,6 @@ int main(int argc, char **argv){
   UInt_t timelow; // this used to be usgined long
   UInt_t timehigh; // this used to be usgined long
   UInt_t timecfd ; 
-
-
-
   //In put tree branches    
   inT->SetBranchAddress("chanid", &chanid);
   inT->SetBranchAddress("fUniqueID", &fUniqueID);
@@ -144,9 +142,12 @@ int main(int argc, char **argv){
   inT->SetBranchAddress("trace", &trace);
   inT->SetBranchAddress("timecfd", &timecfd);
   inT->SetBranchAddress("time", &time);
+  ////////////////////////////////////////////////////////////////////////////////////
 
 
-  Int_t numOfChannels=10;///more channels then i need
+  //set output tree branches and varibables 
+  ////////////////////////////////////////////////////////////////////////////////////
+  Int_t numOfChannels=4;
 
   vector <Sl_Event> previousEvents;
   Double_t sizeOfRollingWindow=6;
@@ -167,8 +168,7 @@ int main(int argc, char **argv){
   outT->Branch("Integral1",&integrals[1],"Integral1/D");
   outT->Branch("Integral2",&integrals[2],"Integral2/D");
   outT->Branch("Integral3",&integrals[3],"Integral3/D");
-  outT->Branch("Integral4",&integrals[4],"Integral4/D");
-  outT->Branch("Integral5",&integrals[5],"Integral5/D");
+
 
   Double_t delta_T1;
   outT->Branch("Delta_T1",&delta_T1,"Delta_T1/D");
@@ -202,17 +202,12 @@ int main(int argc, char **argv){
       outT->Branch("CFDs","TH2F",&CFDs,12800,0);
       outT->Branch("Traces2","TGraph",&traces2,128000,0);
     }
-  //////////////////////////////////////////////////////////////////////////////////////////////
-
-  //
-  
   Double_t eventNum;
   outT->Branch("Jentry",&eventNum,"Jengrty/D");
-
+  
   Double_t eventTriggerNum;
   outT->Branch("EventTriggerNum",&eventTriggerNum,"EventTriggerNum/D");
-
-
+  ////////////////////////////////////////////////////////////////////////////////////
 
   if(maxentry == -1)
     maxentry=nentry;
@@ -220,31 +215,31 @@ int main(int argc, char **argv){
   if (makeTraces)
     maxentry=50;//cap off the number of entries for explict trace making
 
-
-
-
-  Double_t Time_1 =0;
-  Double_t Time_2 =0;
+  //non branch timing variables 
+  ////////////////////////////////////////////////////////////////////////////////////
   Double_t prevTime =0;
-  Double_t totalGoodEvents=0;
   vector <Double_t> thisEventsFF;
   vector <Double_t> thisEventsCFD;
-                                   //zero crossings
+  //zero crossings
   Double_t thisEventsIntegral=0;
-
   Filter theFilter; // Filter object
-
+  ////////////////////////////////////////////////////////////////////////////////////
+  
+  
 
   for (Long64_t jentry=0; jentry<maxentry;jentry++) { // Main analysis loop
     
     inT->GetEntry(jentry); // Get the event from the input tree 
     eventNum=jentry;
 
+    //    cout<<" HEre itis "<<timecfd<<endl;
+    //int t; cin>>t;
+    
+    //initializations for branch variables
+    ///////////////////////////////////////////////////////////////////////////////////////////
     eventTriggerNum=0;//its 0 when there is no correlated event found on this loop
     //set to one below if there was a correlated event fround in the 
     //previous set of events (sizeOfRollingWindow)
-
-    ///////////////////////////////////////////////////////////////////////////////////////////
     timeDiffRaw=0;     //TimeDiffRaw is just the difference between the previous event and
                        //the current one
     timeDiff = BAD_NUM;  //make it something random to distinguish uncorrleated events  
@@ -271,13 +266,16 @@ int main(int argc, char **argv){
 	CFDs->Reset();
       }
     
+    ///////////////////////////////////////////////////////////////////////////////////////////
+
+
     //Time_diff raw 
     timeDiffRaw = time - prevTime;
     prevTime = time;
     ///
-    if(theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "traces"){
-      if(theInputManager.timingMode == "traces" ){
-	softwareCFD = theFilter.fitTrace(trace,jentry);
+    if(theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "fitting"){
+      if(theInputManager.timingMode == "fitting" ){
+	softwareCFD = theFilter.fitTrace(trace,sigma,jentry);
       } else {
 	theFilter.FastFilter(trace,thisEventsFF,FL,FG);
 	//theFilter.FastFilterFull(trace,thisEventsFF,FL,FG,40);
@@ -301,7 +299,7 @@ int main(int argc, char **argv){
     Double_t signalTotalIntegral=0;
     for ( int i=0 ;i<10;i++)
       sum = sum + trace[i]+trace[trace.size()-1-i];
-    sum = sum/20; // average of first and last 10 points should be pretty good background
+    sum = sum/20.0; // average of first and last 10 points should be pretty good background
     for (int i=0;i< (int) trace.size();++i) {
       signalTotalIntegral = trace[i]+ signalTotalIntegral;
     }
@@ -311,21 +309,13 @@ int main(int argc, char **argv){
       thisEventsIntegral = BAD_NUM;
     }
     //set the energy in the filterd tree
+
     integrals[chanid] = thisEventsIntegral;
-    Double_t thresh=10;
+
+
     
     if ( previousEvents.size() >= sizeOfRollingWindow )
       {
-	/*	cout<<endl<<"*****"<<endl;
-	for (Int_t j=0;j<sizeOfRollingWindow;j++){
-	  
-	  cout<<"Channel "<<previousEvents[j].channel<<endl;
-	  cout<<"Time "<<previousEvents[j].time<<endl;
-	  cout<<"Integral "<<previousEvents[j].integral<<endl;
-	  cout<<"Software CFD "<<previousEvents[j].softwareCFD<<endl;
-	}
-	int t;cin>>t;
-	*/
 	for (Int_t q=0;q<3;++q){	
 	  Int_t firstSpot=-1;
 	  Int_t secondSpot=-1;
@@ -356,28 +346,9 @@ int main(int argc, char **argv){
 	    if ( (previousEvents[0].channel*previousEvents[firstSpot].channel !=
 		  previousEvents[firstSpot+1+q].channel*previousEvents[secondSpot].channel) &&
 		 (TMath::Abs(avg2-avg1) < 10.0)) {
-	      //	      cout<<"jentry is "<<jentry<<endl;
 
-	      //Victory
-	      /*cout<<"Victory"<<endl;
-	      cout<<"*************"<<endl;
-	      cout<<"Time diff "<<avg2-avg1<<endl;
-	      cout<<"firstSpot "<<firstSpot<<" q "<<q<< " secondSpot "<<secondSpot<<endl;
-	      cout<<"Channels are "<<previousEvents[0].channel<<" "<<previousEvents[firstSpot].channel<<
-		" and "<<previousEvents[firstSpot+1+q].channel << " "<<previousEvents[secondSpot].channel<<endl;
-	      //	      int t;cin>>t;
-	      */
 	      if (q!=0 || firstSpot!=1)
 		cout<<"q "<<q<<" "<<firstSpot<<endl;
-	      
-	      
-	      /*cout<<"***********"<<endl;
-	      cout<<previousEvents[0].channel-2<<endl;
-	      cout<<previousEvents[firstSpot].channel-2<<endl;
-	      cout<<previousEvents[firstSpot+1+q].channel-2<<endl;
-	      cout<<previousEvents[secondSpot].channel-2<<endl;
-	      int t; cin>>t;
-	      */
 	      integrals[previousEvents[0].channel] = previousEvents[0].integral;
 	      integrals[previousEvents[firstSpot].channel] = previousEvents[firstSpot].integral;
 	      integrals[previousEvents[firstSpot+1+q].channel] = previousEvents[firstSpot+1+q].integral;
@@ -423,8 +394,9 @@ int main(int argc, char **argv){
 
 
     //over write the time when in trace fitting mode or software CFD mode
-      if (theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "traces")
+    if (theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "fitting")
 	time = softwareCFD + timelow+timehigh * 4294967296.0;
+
 
       //Keep the previous event info for correlating      
       if (previousEvents.size() < sizeOfRollingWindow  ) 
@@ -457,12 +429,14 @@ int main(int argc, char **argv){
     outT->Fill();
     
   }//End for
+
   
   
   outT->Write();
   outFile->Close();
-  
-  cout<<totalGoodEvents<<endl;
+
+  cout<<"Number of bad fits "<<theFilter.numOfBadFits<<endl;
+
   cout<<"\n\n**Finished**\n\n";
 
   return  0;

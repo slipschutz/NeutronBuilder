@@ -15,6 +15,7 @@ FileManager::FileManager()
   outputFileName.str("Defualt");
   fileName.str("Defualt");
 
+  timingMode="softwareCFD";//Default to softwareCFD
 
 }
 
@@ -33,7 +34,7 @@ TString FileManager::loadFile(Int_t runNum,Int_t fileNum) {
   }
 
   
-  outputFileName << fileName.str();
+  outputFileName << fileName.str()<<"-"<<timingMode;
 
   if (fileNum < 10){
     fileName<<"-0"<<fileNum;
@@ -55,7 +56,7 @@ TString FileManager::loadFile(Int_t runNum,Int_t fileNum) {
 TFile * FileManager::getOutputFile(){
 
 
-  outputFileName << "-00-output.root";
+  outputFileName << "-output.root";
 
   TFile * temp = new TFile(outputFileName.str().c_str(),"recreate");
    
@@ -73,9 +74,9 @@ TFile * FileManager::getOutputFile(Double_t FL, Double_t FG, Double_t d, Double_
 
   std::stringstream st;
 
-  st<<"FL"<<FL<<"FG"<<FG<<"d"<<d<<"w"<<w*10;
+  st<<"FL"<<FL<<"FG"<<FG<<"d"<<d<<"w"<<w;
 
-  st << outputFileName.str();
+  st << outputFileName.str()<<".root";
   
   outputFileName.str(st.str());
   
@@ -90,3 +91,27 @@ TFile * FileManager::getOutputFile(Double_t FL, Double_t FG, Double_t d, Double_
 
   return temp;
 }
+
+TFile * FileManager::getOutputFile(Double_t sigma){
+  std::stringstream st;
+
+  st<<"sigma_"<<sigma<<"_";
+
+  st << outputFileName.str()<<".root";
+
+  outputFileName.str(st.str());
+
+  TFile * temp = new TFile(outputFileName.str().c_str(),"recreate");
+
+  if(!temp)
+    {
+      cout << "\nCould not open " << outputFileName.str() <<endl;
+      exit(-1);
+    } else
+    cout << "Opened output file " <<outputFileName.str()<< endl;
+
+  return temp;
+
+
+}
+

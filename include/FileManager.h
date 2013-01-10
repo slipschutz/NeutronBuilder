@@ -4,7 +4,8 @@
 
 #include "TFile.h"
 #include <sstream>
-
+#include <string>
+using namespace std;
 class FileManager {
 
 public:
@@ -13,13 +14,15 @@ public:
 
   TFile * getOutputFile();
   TFile * getOutputFile(Double_t FL, Double_t FG, Double_t d, Double_t w);
+  TFile * getOutputFile(Double_t sigma);
+  
 
   //File name streams
   std::stringstream fileName;
   std::stringstream outputFileName;
 
 
-  
+  string timingMode;
   
 
 };

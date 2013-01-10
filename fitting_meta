@@ -36,20 +36,10 @@ if [ $numFiles -eq -1 ]; then
     exit 1;
 fi
 num=0;
-for ((FL=2;FL<4;FL++)); do
-    for ((FG=0;FG<1;FG++)); do
-    	for ((d=2;d<3;d++));do
-	    for ((w=4;w<8;w++));do
-		num=$(($num + 1));
-		##Bash doesn't like decimals so w is divided by 10 within builder
-		./EvtBuilder $runNum numFiles:$numFiles FL:$FL FG:$FG d:$d w:$w &> log_${runNum}_${FL}_${FG}_${d}_${w} &
-	    done	    
-	done
-	
-	
-	
-    done
-
+for ((sigma=9;sigma<15;sigma++)); do
+    num=$(($num + 1));
+    ##Bash doesn't like decimals so sigma is divided by 10 within builder
+    ./EvtBuilder $runNum numFiles:${numFiles} timingMode:fitting sigma:${sigma} &> log_${sigma} &
     
 done
 

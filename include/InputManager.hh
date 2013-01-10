@@ -18,20 +18,26 @@ public:
   
   Bool_t loadInputs(vector <string> &);
 
-  Bool_t loadInputs2(vector <string> &);
-
   Int_t numFiles,runNum;
 
-  Bool_t makeTraces;
+  Bool_t makeTraces,ext_flag;
   
   string timingMode;
-  
+  Double_t FL,FG,d,w;
+
+  Double_t sigma;
+
+  Bool_t ext_sigma_flag;
 private:
   vector <string> split (const string &s, char delim, vector<string> &elems);
   vector <string> split (const string &s, char delim);
 
   Bool_t checkValues();
 
+
+
+
+  
   vector<string> validTimingModes;
   void dumpValidModes();
 

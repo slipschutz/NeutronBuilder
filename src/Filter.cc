@@ -12,11 +12,12 @@
 #include "TFitResult.h"
 #include "TF1.h"
 
+#include <sstream>
 using namespace std;
 
 Filter::Filter()
 {
-
+  numOfBadFits=0;
 
 }
 
@@ -164,13 +165,13 @@ Double_t Filter::GetZeroCrossing(std::vector <Double_t> & CFD){
 
   if (thisEventsZeroCrossings.size() == 0)
     thisEventsZeroCrossings.push_back(BAD_NUM);
-
+ 
 
   return thisEventsZeroCrossings[0]; // take the first one
 }
 
 
-Double_t Filter::fitTrace(std::vector <UShort_t> & trace,Double_t num){
+Double_t Filter::fitTrace(std::vector <UShort_t> & trace,Double_t sigma,Double_t num){
 
   Int_t size = (Int_t) trace.size();
   std::vector <Double_t> y_values,x_values;
@@ -197,8 +198,15 @@ Double_t Filter::fitTrace(std::vector <UShort_t> & trace,Double_t num){
   Int_t fitWindowWidth=10;  //plus or minus 5 bins on either side of max
   //to be taken into acount during fit
   Double_t mu=-1000;
+  
+  //1.7711 the sigma determined from looking at traces
+  stringstream stream;
+  stream<< "[2]+[0]*exp(-0.5*( ((x-[1])/"<<sigma<<  ")^2) )";
+  
+  
 
-  TF1 *myfit = new TF1("myfit","[2]+[0]*exp(-0.5*( ((x-[1])/1.7711)^2) )",0,200); 
+
+  TF1 *myfit = new TF1("myfit",stream.str().c_str(),0,200); 
 
   myfit->SetParameter(0, 1);
   myfit->SetParameter(1, 100);
@@ -220,8 +228,9 @@ Double_t Filter::fitTrace(std::vector <UShort_t> & trace,Double_t num){
     A=fitPointer->Value(0);
     base = fitPointer->Value(2);
   } else {
-    cout<<"***Warning bad fit result retured**"<<endl;
-    cout<<"***jentry is "<<num<<"***"<<endl;
+    //        cout<<"***Warning bad fit result retured**"<<endl;
+    //  cout<<"***jentry is "<<num<<"***"<<endl;
+    numOfBadFits++;
   }
   
   //Detele objects
