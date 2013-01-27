@@ -20,8 +20,8 @@ InputManager::InputManager()
 
   //defualt Filter settings see pixie manual
   FL=2;
-  FG=1;
-  d=2; //in clock ticks
+  FG=0;
+  d=3; //in clock ticks
   w =0.25;
   ext_flag=false;//defualt to none meta run format
 

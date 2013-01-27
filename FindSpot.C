@@ -18,11 +18,9 @@
 
 
 
-int FindSpot (TH1F * h)
+int FindSpot (TH1F * h,int start=400,int endd=900)
 {
- int  start =490;
 
-  int endd=900;
   
   int  binStart = h->FindBin(start);
   int binEnd = h->FindBin(endd);
@@ -43,18 +41,20 @@ int FindSpot (TH1F * h)
   }
 
 
-  cout<<"The Maximum is "<< max <<endl;
+  cout<<"The Maximum value is "<< max <<endl;
 
+  int maxBin = h->FindLastBinAbove(max*0.95);
+  cout<<"Max bin is "<<maxBin<<endl;
 
   Double_t twoThirdmax = (2.0/3.0)*max;
 
-  cout<<"twoThirdMax is "<<twoThirdmax<<endl;
+  cout<<"twoThirdMax value is "<<twoThirdmax<<endl;
 
-  for (int i=binStart;i<binEnd;i++){
+  for (int i=maxBin;i<binEnd;i++){
 
 
     if ( h->GetBinContent(i) <= twoThirdmax ){
-      cout<<"i is "<<i <<" Bin center is "<<h->GetBinCenter(i)<<endl;
+      cout<<"bin is "<<i <<" Bin center is "<<h->GetBinCenter(i)<<endl;
       break;
     }
 

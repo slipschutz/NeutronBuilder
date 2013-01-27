@@ -103,7 +103,7 @@ fi
 
 if [ $build -eq 1 ]; then
 
-    ./EvtBuilder $runNum numFiles:$num timingMode:internalCFD
+    ./EvtBuilder $runNum numFiles:$num 
 fi
 
 echo Done | mail soam5515@yahoo.com

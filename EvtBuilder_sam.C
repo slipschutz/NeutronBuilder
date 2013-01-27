@@ -27,6 +27,8 @@
 
 #define BAD_NUM -10008
 
+
+
 struct Sl_Event {
   Int_t channel;
   Double_t time;
@@ -43,11 +45,12 @@ Bool_t checkChannels(Int_t a,Int_t b){
 
 Bool_t checkChannels(vector <Sl_Event> &in){
 
-  vector <Bool_t> ch(10,false);  //to make this work with different cable arrangements
+  vector <Bool_t> ch(20,false);  //to make this work with different cable arrangements
   
 
   for (int i=0;i<in.size();i++){
-    ch[in[i].channel]=true;
+    if (in[i].channel<4)
+      ch[in[i].channel]=true;
   }
   // if it was a good event there should be 4 trues
   int count=0;
@@ -65,6 +68,11 @@ Bool_t checkChannels(vector <Sl_Event> &in){
 }
 
 
+//Corrections
+//as seen in run268
+Double_t Delta_T1_Cor=0.392672;
+Double_t Delta_T2_Cor=-0.0112378;
+Double_t int0_Cor
 
 
 using namespace std;
@@ -150,6 +158,7 @@ int main(int argc, char **argv){
   // set input tree branvh variables and addresses
   ////////////////////////////////////////////////////////////////////////////////////
   Int_t chanid;
+  Int_t slotid;
   vector<UShort_t> trace;
   UInt_t fUniqueID;
   UInt_t energy;
@@ -165,6 +174,7 @@ int main(int argc, char **argv){
   inT->SetBranchAddress("timehigh", &timehigh);
   inT->SetBranchAddress("trace", &trace);
   inT->SetBranchAddress("timecfd", &timecfd);
+  inT->SetBranchAddress("slotid", &slotid);
   inT->SetBranchAddress("time", &time);
   ////////////////////////////////////////////////////////////////////////////////////
 
@@ -177,9 +187,23 @@ int main(int argc, char **argv){
   Double_t sizeOfRollingWindow=4;
   
   //Out put tree branches 
-  Double_t timeDiff;
+  Double_t timeDiff,timeDiff1,timeDiff2,timeDiff3,timeDiff4; 
+  
+  Double_t timeDiffcor1,timeDiffcor2,timeDiffcor12;
+  
   outT->Branch("Time_Diff",&timeDiff,"Time_Diff/D");
- 
+
+  outT->Branch("Time_Diff1",&timeDiff1,"Time_Diff1/D");
+  outT->Branch("Time_Diff2",&timeDiff2,"Time_Diff2/D");
+  outT->Branch("Time_Diff3",&timeDiff3,"Time_Diff3/D");
+  outT->Branch("Time_Diff4",&timeDiff4,"Time_Diff4/D");
+
+  outT->Branch("Time_Diffcor1",&timeDiffcor1,"Time_Diffcor1/D");
+  outT->Branch("Time_Diffcor2",&timeDiffcor2,"Time_Diffcor2/D");
+  outT->Branch("Time_Diffcor12",&timeDiffcor12,"Time_Diffcor12/D");
+  
+
+
   Double_t timeDiffRaw;
   outT->Branch("Time_Diff_Raw",&timeDiffRaw,"Time_Diff_Raw/D");
 
@@ -292,7 +316,6 @@ int main(int argc, char **argv){
     
     ///////////////////////////////////////////////////////////////////////////////////////////
 
-
     //Time_diff raw 
     timeDiffRaw = time - prevTime;
     prevTime = time;
@@ -337,21 +360,20 @@ int main(int argc, char **argv){
     
     if ( previousEvents.size() >= sizeOfRollingWindow )
       {
-
 	if ( checkChannels(previousEvents) )
 	  { // there are all four channels
-	    //bar 12 channels 0,1
-	    //bar 24 channels 2,3
+	    
 	    //for cable arrangement independance
-	    vector <Double_t> times_extra(10,0);
+	    vector <Double_t> times_extra(20,0);
 	    vector <Double_t> times; // there are only 4 channels
-	    vector <Double_t> integrals_extra(10,0);
+	    vector <Double_t> integrals_extra(20,0);
 	    vector <Double_t> integrals_ordered;
 
 	    for (Int_t i=0;i<previousEvents.size();i++){
 	      times_extra[previousEvents[i].channel]=previousEvents[i].time;
 	      integrals_extra[previousEvents[i].channel]=previousEvents[i].integral;
 	    }
+
 	    for (int i=0;i<times_extra.size();i++){
 	      if (times_extra[i]!=0 && integrals_extra[i]!=0){
 		times.push_back(times_extra[i]);
@@ -362,8 +384,17 @@ int main(int argc, char **argv){
 
 	    if (TMath::Abs ( (times[0]+times[1]-times[2]-times[3])/2 ) <10.0){
 	      //Good event
-	      
+
 	      timeDiff = (times[0]+times[1]-times[2]-times[3])/2 +10;
+	      timeDiff1 = (times[0]-times[2]) +10;
+	      timeDiff2 = (times[1]-times[3]) +10;
+	      timeDiff3 = (times[0]-times[3]) +10;
+	      timeDiff4 = (times[1]-times[2]) +10;	      
+
+
+	      
+	      if (timeDiff==10)
+		timeDiff=BAD_NUM;
 	      
 	      for (int q=0;q<integrals_ordered.size();q++)
 		integrals[q]=integrals_ordered[q];//assign the values to the branch var
@@ -371,12 +402,15 @@ int main(int argc, char **argv){
 	      //so I don't need to check;
 
 	      
-	      delta_T1 =  times[1]-times[0];
-              delta_T2 =  times[3]-times[2];
+	      delta_T1 =  times[1]-times[0]-Delta_T1_Cor;
+              delta_T2 =  times[3]-times[2]-Delta_T2_Cor;
 
               GravityOfEnergy1 = (integrals[1]-integrals[0])/(integrals[0]+integrals[1]);
               GravityOfEnergy2 = (integrals[3]-integrals[2])/(integrals[2]+integrals[3]);
 
+	      timeDiffcor1 = timeDiff - GravityOfEnergy1*(0.113013);
+	      timeDiffcor2 = timeDiff - GravityOfEnergy2*(-0.11737);
+	      timeDiffcor12 =timeDiff - GravityOfEnergy2*(-0.11737) - GravityOfEnergy1*(0.113013);
 
               Double_t e0,e1,e2,e3; //Gain matched energies matched to chan2
               e0 = integrals[0]+182.906;
@@ -390,88 +424,11 @@ int main(int argc, char **argv){
 	      outT->Fill();
 	    }
 	  }
-	/*
-
-	for (Int_t q=0;q<3;++q){	
-	  Int_t firstSpot=-1;
-	  Int_t secondSpot=-1;
-	  Double_t avg1=0;
-	  Double_t avg2=0;
-	  for (Int_t i=1;i<(Int_t) previousEvents.size();++i) {
-	    if ( (previousEvents[i].time -previousEvents[0].time < 2)
-		 && checkChannels(previousEvents[i].channel,previousEvents[0].channel)) {
-	      firstSpot=i;
-	      break;
-	    }
-	  }
-	  
-	  for (Int_t i=firstSpot+2+q;i<(Int_t) previousEvents.size();++i) {
-	    if ( (previousEvents[i].time -previousEvents[firstSpot+1+q].time < 2)
-		 && checkChannels(previousEvents[i].channel,previousEvents[firstSpot+1+q].channel)) {
-	      secondSpot=i;
-	      break;
-	    }
-	  }
-	  
-	  if (secondSpot != -1 && firstSpot != -1 ){
-	    
-	    avg1= TMath::Sqrt(previousEvents[0].time * previousEvents[firstSpot].time);
-	    avg2=TMath::Sqrt(previousEvents[firstSpot+1+q].time *previousEvents[secondSpot].time);
-	    
-	    
-	    if ( (previousEvents[0].channel*previousEvents[firstSpot].channel !=
-		  previousEvents[firstSpot+1+q].channel*previousEvents[secondSpot].channel) &&
-		 (TMath::Abs(avg2-avg1) < 10.0)) {
-	      
-	      if (q!=0 || firstSpot!=1)
-		cout<<"q "<<q<<" "<<firstSpot<<endl;
-	      integrals[previousEvents[0].channel] = previousEvents[0].integral;
-	      integrals[previousEvents[firstSpot].channel] = previousEvents[firstSpot].integral;
-	      integrals[previousEvents[firstSpot+1+q].channel] = previousEvents[firstSpot+1+q].integral;
-	      integrals[previousEvents[secondSpot].channel] = previousEvents[secondSpot].integral;
-
-	      delta_T1 =  previousEvents[firstSpot].time-previousEvents[0].time;
-	      delta_T2 =  previousEvents[secondSpot].time-previousEvents[firstSpot+1+q].time;
-
-	      GravityOfEnergy1 = (integrals[1]-integrals[0])/(integrals[0]+integrals[1]);
-	      GravityOfEnergy2 = (integrals[3]-integrals[2])/(integrals[2]+integrals[3]);
-	      
-
-	      Double_t e0,e1,e2,e3; //Gain matched energies matched to chan2
-	      e0 = integrals[0]+182.906;
-	      e1 = integrals[1]+220.97;
-	      e2 = integrals[2];
-	      e3 = integrals[3]+223.688;
-	      
-	      GOE1 = ( e1 - e0 ) / (e0 + e1 );
-	      GOE2 = ( e3-e2 )/(e2 + e3);
-	      
-	      
-	      if (previousEvents[firstSpot].channel == 2 || previousEvents[firstSpot].channel == 4){
-		delta_T1=-1*delta_T1;//want to always have the same channel minus the the same channel
-		GravityOfEnergy1 =-1*GravityOfEnergy1;
-		GOE1=-1*GOE1;
-	      }
-	      if (previousEvents[secondSpot].channel == 2 || previousEvents[secondSpot].channel == 4){
-		delta_T2=-1*delta_T2;
-		GravityOfEnergy2 =-1*GravityOfEnergy2;
-		GOE2=-1*GOE2;
-	      }
-	      
-	      eventTriggerNum=1;
-	      timeDiff=TMath::Abs(avg2-avg1);
-
-	      q=1000;//kill outer loop
-	    }
-	  }
-	}
-      }
-	*/
       }
 
     //over write the time when in trace fitting mode or software CFD mode
     if (theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "fitting")
-	time = softwareCFD + timelow+timehigh * 4294967296.0;
+      time = softwareCFD ;
 
 
       //Keep the previous event info for correlating      
