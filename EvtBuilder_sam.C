@@ -15,15 +15,16 @@
 #include "TString.h"
 #include "TSystem.h"
 #include "TGraph.h"
+#include "TChain.h"
 
 //Local Headers
 #include "SL_Event.h"
 #include "Filter.hh"
 #include "FileManager.h"
 #include "InputManager.hh"
+#include "CorrectionManager.hh"
 
 
-#include "TChain.h"
 
 #define BAD_NUM -10008
 
@@ -72,7 +73,9 @@ Bool_t checkChannels(vector <Sl_Event> &in){
 //as seen in run268
 Double_t Delta_T1_Cor=0.392672;
 Double_t Delta_T2_Cor=-0.0112378;
-Double_t int0_Cor
+Double_t int_corrections[4];
+
+
 
 
 using namespace std;
@@ -93,7 +96,13 @@ int main(int argc, char **argv){
   if ( !  theInputManager.loadInputs(inputs) ){
     return 0;
   }
+  
+  int_corrections[0]=341.0/609;
+  int_corrections[1]=341.0/539;
+  int_corrections[2]=341.0/735;
+  int_corrections[3]=341.0/511;
 
+  
   Double_t sigma=theInputManager.sigma; // the sigma used in the fitting option
 
   Int_t runNum=theInputManager.runNum;
@@ -211,11 +220,18 @@ int main(int argc, char **argv){
   outT->Branch("SoftwareCFD",&softwareCFD,"SoftwareCDF/D");
 
   Double_t integrals[numOfChannels];
+  Double_t integrals_cor[numOfChannels];
     
+  
   outT->Branch("Integral0",&integrals[0],"Integral0/D");
   outT->Branch("Integral1",&integrals[1],"Integral1/D");
   outT->Branch("Integral2",&integrals[2],"Integral2/D");
   outT->Branch("Integral3",&integrals[3],"Integral3/D");
+
+  outT->Branch("Integral0_cor",&integrals_cor[0],"Integral0_cor/D");
+  outT->Branch("Integral1_cor",&integrals_cor[1],"Integral1_cor/D");
+  outT->Branch("Integral2_cor",&integrals_cor[2],"Integral2_cor/D");
+  outT->Branch("Integral3_cor",&integrals_cor[3],"Integral3_cor/D");
 
 
   Double_t delta_T1;
@@ -300,9 +316,10 @@ int main(int argc, char **argv){
     delta_T1 = BAD_NUM;
     delta_T2 = BAD_NUM;
     
-    for (Int_t i=0;i<(Int_t) numOfChannels;++i)
+    for (Int_t i=0;i<(Int_t) numOfChannels;++i){
       integrals[i]=BAD_NUM; //ditto
-    
+      integrals_cor[i]=BAD_NUM;
+    }
     //software genearted filters
     thisEventsCFD.clear();//Clear the CFD vector 
     thisEventsFF.clear();//Clear this events fast filter
@@ -396,10 +413,12 @@ int main(int argc, char **argv){
 	      if (timeDiff==10)
 		timeDiff=BAD_NUM;
 	      
-	      for (int q=0;q<integrals_ordered.size();q++)
+	      for (int q=0;q<integrals_ordered.size();q++){
 		integrals[q]=integrals_ordered[q];//assign the values to the branch var
 	      //since the channels are ordered.  the integrals[0] will always bee the same channel
 	      //so I don't need to check;
+		integrals_cor[q]=integrals[q]*int_corrections[q];
+	      }
 
 	      
 	      delta_T1 =  times[1]-times[0]-Delta_T1_Cor;
@@ -407,20 +426,15 @@ int main(int argc, char **argv){
 
               GravityOfEnergy1 = (integrals[1]-integrals[0])/(integrals[0]+integrals[1]);
               GravityOfEnergy2 = (integrals[3]-integrals[2])/(integrals[2]+integrals[3]);
+	      GOE1 = (integrals_cor[1]-integrals_cor[0])/(integrals_cor[0]+integrals_cor[1]);
+              GOE2 = (integrals_cor[3]-integrals_cor[2])/(integrals_cor[2]+integrals_cor[3]);
 
 	      timeDiffcor1 = timeDiff - GravityOfEnergy1*(0.113013);
 	      timeDiffcor2 = timeDiff - GravityOfEnergy2*(-0.11737);
-	      timeDiffcor12 =timeDiff - GravityOfEnergy2*(-0.11737) - GravityOfEnergy1*(0.113013);
+	      timeDiffcor12 =timeDiff - GravityOfEnergy2*(-0.0449815) - GravityOfEnergy1*(0.113013);
+	      // -0.0449815 correcions determinded on GOE2:time_diffcor1
 
-              Double_t e0,e1,e2,e3; //Gain matched energies matched to chan2
-              e0 = integrals[0]+182.906;
-              e1 = integrals[1]+220.97;
-              e2 = integrals[2];
-              e3 = integrals[3]+223.688;
 
-              GOE1 = ( e1 - e0 ) / (e0 + e1 );
-              GOE2 = ( e3-e2 )/(e2 + e3);
-	      
 	      outT->Fill();
 	    }
 	  }
