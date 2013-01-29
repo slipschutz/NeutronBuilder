@@ -47,7 +47,6 @@ Bool_t checkChannels(Int_t a,Int_t b){
 Bool_t checkChannels(vector <Sl_Event> &in){
 
   vector <Bool_t> ch(20,false);  //to make this work with different cable arrangements
-  
 
   for (int i=0;i<in.size();i++){
     if (in[i].channel<4)
@@ -71,9 +70,9 @@ Bool_t checkChannels(vector <Sl_Event> &in){
 
 //Corrections
 //as seen in run268
-Double_t Delta_T1_Cor=0.392672;
-Double_t Delta_T2_Cor=-0.0112378;
-Double_t int_corrections[4];
+//Double_t Delta_T1_Cor=0.392672;
+//Double_t Delta_T2_Cor=-0.0112378;
+//Double_t int_corrections[4];
 
 
 
@@ -97,11 +96,10 @@ int main(int argc, char **argv){
     return 0;
   }
   
-  int_corrections[0]=341.0/609;
-  int_corrections[1]=341.0/539;
-  int_corrections[2]=341.0/735;
-  int_corrections[3]=341.0/511;
+  ////////////////////////////////////////////////////////////////////////////////////
 
+
+  //load correcctions and settings
   
   Double_t sigma=theInputManager.sigma; // the sigma used in the fitting option
 
@@ -120,8 +118,20 @@ int main(int argc, char **argv){
   Double_t FG=theInputManager.FG;
   int CFD_delay=theInputManager.d; //in clock ticks
   Double_t CFD_scale_factor =theInputManager.w;
+   
+  CorrectionManager corMan;
+  corMan.loadFile(runNum);
+  Double_t Delta_T1_Cor=corMan.get("delta_t1");
+  Double_t Delta_T2_Cor=corMan.get("delta_t2");
+  Double_t int_corrections[4];  
+  int_corrections[0]=corMan.get("int0");
+  int_corrections[1]=corMan.get("int1");
+  int_corrections[2]=corMan.get("int2");
+  int_corrections[3]=corMan.get("int3");
+  Double_t GOE_cor1 = corMan.get("goe1");
+  Double_t GOE_cor2 = corMan.get("goe2");
 
-    //prepare files and output tree
+  //prepare files and output tree
   ////////////////////////////////////////////////////////////////////////////////////
   TFile *outFile=0;
   TTree  *outT;
@@ -211,8 +221,6 @@ int main(int argc, char **argv){
   outT->Branch("Time_Diffcor2",&timeDiffcor2,"Time_Diffcor2/D");
   outT->Branch("Time_Diffcor12",&timeDiffcor12,"Time_Diffcor12/D");
   
-
-
   Double_t timeDiffRaw;
   outT->Branch("Time_Diff_Raw",&timeDiffRaw,"Time_Diff_Raw/D");
 
@@ -400,46 +408,54 @@ int main(int argc, char **argv){
 	    
 
 	    if (TMath::Abs ( (times[0]+times[1]-times[2]-times[3])/2 ) <10.0){
-	      //Good event
+	      if (theInputManager.timingMode != "internalCFD" && times[0] != BAD_NUM
+		  &&  times[1] != BAD_NUM && times[2] != BAD_NUM&& times[3] != BAD_NUM){
+		//Good Event
 
-	      timeDiff = (times[0]+times[1]-times[2]-times[3])/2 +10;
-	      timeDiff1 = (times[0]-times[2]) +10;
-	      timeDiff2 = (times[1]-times[3]) +10;
-	      timeDiff3 = (times[0]-times[3]) +10;
-	      timeDiff4 = (times[1]-times[2]) +10;	      
+		
+		delta_T1 =  times[1]-times[0];
+		delta_T2 =  times[3]-times[2];
+		
+		times[1]=times[1]-Delta_T1_Cor;
+		times[3]=times[3]-Delta_T2_Cor;
 
 
+		timeDiff = (times[0]+times[1]-times[2]-times[3])/2 +10;
+		timeDiff1 = (times[0]-times[2]) +10;
+		timeDiff2 = (times[1]-times[3]) +10;
+		timeDiff3 = (times[0]-times[3]) +10;
+		timeDiff4 = (times[1]-times[2]) +10;	      
+		
+		
+		
+		for (int q=0;q<integrals_ordered.size();q++){
+		  integrals[q]=integrals_ordered[q];//assign the values to the branch var
+		  //since the channels are ordered.  the integrals[0] will always bee the same channel
+		  //so I don't need to check;
+		  integrals_cor[q]=integrals[q]*int_corrections[q];
+		}
+		
+		
+				
+		GravityOfEnergy1 = (integrals[1]-integrals[0])/(integrals[0]+integrals[1]);
+		GravityOfEnergy2 = (integrals[3]-integrals[2])/(integrals[2]+integrals[3]);
+		GOE1 = (integrals_cor[1]-integrals_cor[0])/(integrals_cor[0]+integrals_cor[1]);
+		GOE2 = (integrals_cor[3]-integrals_cor[2])/(integrals_cor[2]+integrals_cor[3]);
+		
+		timeDiffcor1 = timeDiff - GravityOfEnergy1*GOE_cor1;
+		timeDiffcor2 = timeDiff - GravityOfEnergy2*GOE_cor2;
+	        timeDiffcor12 =timeDiff - GravityOfEnergy2*GOE_cor2 - GravityOfEnergy1*GOE_cor1;
 	      
-	      if (timeDiff==10)
-		timeDiff=BAD_NUM;
-	      
-	      for (int q=0;q<integrals_ordered.size();q++){
-		integrals[q]=integrals_ordered[q];//assign the values to the branch var
-	      //since the channels are ordered.  the integrals[0] will always bee the same channel
-	      //so I don't need to check;
-		integrals_cor[q]=integrals[q]*int_corrections[q];
+	      //		timeDiffcor1 = timeDiff - GravityOfEnergy1*(0.113013);
+		//
+		//	timeDiffcor12 =timeDiff - GravityOfEnergy2*(-0.0449815) - GravityOfEnergy1*(0.113013);
+		// -0.0449815 correcions determinded on GOE2:time_diffcor1
+				
+		outT->Fill();
 	      }
-
-	      
-	      delta_T1 =  times[1]-times[0]-Delta_T1_Cor;
-              delta_T2 =  times[3]-times[2]-Delta_T2_Cor;
-
-              GravityOfEnergy1 = (integrals[1]-integrals[0])/(integrals[0]+integrals[1]);
-              GravityOfEnergy2 = (integrals[3]-integrals[2])/(integrals[2]+integrals[3]);
-	      GOE1 = (integrals_cor[1]-integrals_cor[0])/(integrals_cor[0]+integrals_cor[1]);
-              GOE2 = (integrals_cor[3]-integrals_cor[2])/(integrals_cor[2]+integrals_cor[3]);
-
-	      timeDiffcor1 = timeDiff - GravityOfEnergy1*(0.113013);
-	      timeDiffcor2 = timeDiff - GravityOfEnergy2*(-0.11737);
-	      timeDiffcor12 =timeDiff - GravityOfEnergy2*(-0.0449815) - GravityOfEnergy1*(0.113013);
-	      // -0.0449815 correcions determinded on GOE2:time_diffcor1
-
-
-	      outT->Fill();
 	    }
 	  }
       }
-
     //over write the time when in trace fitting mode or software CFD mode
     if (theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "fitting")
       time = softwareCFD ;

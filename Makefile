@@ -4,6 +4,7 @@ LDLIBS=`root-config --glibs`
 LDFLAGS=`root-config --ldflags`
 #SOURCES=./src/SL_Event.cc ./src/FileManager.cc ./src/Filter.cc
 SOURCES=$(shell ls ./src/*.cc)
+TEMP=$(SOURCES:.cc=.cc~)
 OBJECTS=$(SOURCES:.cc=.o) 
 MAIN=EvtBuilder_sam.C
 MAINO=./src/EvtBuilder_sam.o
@@ -53,5 +54,6 @@ clean:
 	-rm ./$(MAINO)
 
 test:
-	@echo $(SOURCES)
+	@echo $(TEMP)
+	-rm $(TEMP)
 	@echo $(OBJECTS)
