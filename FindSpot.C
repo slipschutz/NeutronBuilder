@@ -1,4 +1,4 @@
-//
+/
 // script to find the bin value coresponding to the 2/3 of the maximum 
 // of first compton edge.  
 // 

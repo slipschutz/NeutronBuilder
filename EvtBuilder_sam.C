@@ -49,7 +49,7 @@ Bool_t checkChannels(vector <Sl_Event> &in){
   vector <Bool_t> ch(20,false);  //to make this work with different cable arrangements
 
   for (int i=0;i<in.size();i++){
-    if (in[i].channel<4)
+    if (in[i].channel<14)
       ch[in[i].channel]=true;
   }
   // if it was a good event there should be 4 trues
@@ -67,12 +67,6 @@ Bool_t checkChannels(vector <Sl_Event> &in){
 
 }
 
-
-//Corrections
-//as seen in run268
-//Double_t Delta_T1_Cor=0.392672;
-//Double_t Delta_T2_Cor=-0.0112378;
-//Double_t int_corrections[4];
 
 
 
@@ -118,11 +112,11 @@ int main(int argc, char **argv){
   Double_t FG=theInputManager.FG;
   int CFD_delay=theInputManager.d; //in clock ticks
   Double_t CFD_scale_factor =theInputManager.w;
-   
+     
   CorrectionManager corMan;
   corMan.loadFile(runNum);
-  Double_t Delta_T1_Cor=corMan.get("delta_t1");
-  Double_t Delta_T2_Cor=corMan.get("delta_t2");
+  Double_t SDelta_T1_Cor=corMan.get("sdt1");
+  Double_t SDelta_T2_Cor=corMan.get("sdt2");
   Double_t int_corrections[4];  
   int_corrections[0]=corMan.get("int0");
   int_corrections[1]=corMan.get("int1");
@@ -130,6 +124,11 @@ int main(int argc, char **argv){
   int_corrections[3]=corMan.get("int3");
   Double_t GOE_cor1 = corMan.get("goe1");
   Double_t GOE_cor2 = corMan.get("goe2");
+  Double_t Delta_T1_Cor_0 =corMan.get("dt1_0");
+  Double_t Delta_T1_Cor_1 =corMan.get("dt1_1");
+  Double_t Delta_T1_Cor_2 =corMan.get("dt1_2");
+
+  Double_t Delta_T2_Cor =corMan.get("dt2");
 
   //prepare files and output tree
   ////////////////////////////////////////////////////////////////////////////////////
@@ -208,7 +207,9 @@ int main(int argc, char **argv){
   //Out put tree branches 
   Double_t timeDiff,timeDiff1,timeDiff2,timeDiff3,timeDiff4; 
   
-  Double_t timeDiffcor1,timeDiffcor2,timeDiffcor12;
+  Double_t timeDiffgoecor1,timeDiffgoecor2,timeDiffcor12;
+  Double_t timeDiffdtcor1,timeDiffdtcor2;
+
   
   outT->Branch("Time_Diff",&timeDiff,"Time_Diff/D");
 
@@ -217,8 +218,12 @@ int main(int argc, char **argv){
   outT->Branch("Time_Diff3",&timeDiff3,"Time_Diff3/D");
   outT->Branch("Time_Diff4",&timeDiff4,"Time_Diff4/D");
 
-  outT->Branch("Time_Diffcor1",&timeDiffcor1,"Time_Diffcor1/D");
-  outT->Branch("Time_Diffcor2",&timeDiffcor2,"Time_Diffcor2/D");
+  outT->Branch("Time_Diffgoecor1",&timeDiffgoecor1,"Time_Diffgoecor1/D");
+  outT->Branch("Time_Diffdtcor1",&timeDiffdtcor1,"Time_Diffdtcor1/D");
+
+  outT->Branch("Time_Diffdtcor2",&timeDiffdtcor2,"Time_Diffdtcor2");
+  outT->Branch("Time_Diffgoecor2",&timeDiffgoecor2,"Time_Diffgoecor2/D");
+
   outT->Branch("Time_Diffcor12",&timeDiffcor12,"Time_Diffcor12/D");
   
   Double_t timeDiffRaw;
@@ -296,16 +301,22 @@ int main(int argc, char **argv){
   Double_t thisEventsIntegral=0;
   Filter theFilter; // Filter object
   ////////////////////////////////////////////////////////////////////////////////////
-  
-  
+  Bool_t normalSet=true;
+  for (Long64_t jentry=0; jentry<10;jentry++){
+    inT->GetEntry(jentry);
+    if(slotid!=2){
+      normalSet=false;
+      break;
+    }
+  }
+
 
   for (Long64_t jentry=0; jentry<maxentry;jentry++) { // Main analysis loop
     
     inT->GetEntry(jentry); // Get the event from the input tree 
     eventNum=jentry;
-
-    //    cout<<" HEre itis "<<timecfd<<endl;
-    //int t; cin>>t;
+    if (normalSet == false)
+      chanid=slotid;
     
     //initializations for branch variables
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -341,11 +352,13 @@ int main(int argc, char **argv){
     
     ///////////////////////////////////////////////////////////////////////////////////////////
 
+
+    
     //Time_diff raw 
     timeDiffRaw = time - prevTime;
     prevTime = time;
     ///
-    if(theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "fitting"){
+    if((theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "fitting") && chanid < 14){
       if(theInputManager.timingMode == "fitting" ){
 	softwareCFD = theFilter.fitTrace(trace,sigma,jentry);
       } else {
@@ -387,7 +400,7 @@ int main(int argc, char **argv){
       {
 	if ( checkChannels(previousEvents) )
 	  { // there are all four channels
-	    
+
 	    //for cable arrangement independance
 	    vector <Double_t> times_extra(20,0);
 	    vector <Double_t> times; // there are only 4 channels
@@ -406,18 +419,16 @@ int main(int argc, char **argv){
 	      }//variable here because it has to already be defined and set to a size
 	    }
 	    
+	    
 
 	    if (TMath::Abs ( (times[0]+times[1]-times[2]-times[3])/2 ) <10.0){
-	      if (theInputManager.timingMode != "internalCFD" && times[0] != BAD_NUM
-		  &&  times[1] != BAD_NUM && times[2] != BAD_NUM&& times[3] != BAD_NUM){
+	      if ( times[0] != BAD_NUM &&  times[1] != BAD_NUM && times[2] != BAD_NUM&& times[3] != BAD_NUM){
 		//Good Event
 
-		
+		times[1]=times[1]-SDelta_T1_Cor;
+		times[3]=times[3]-SDelta_T2_Cor;
 		delta_T1 =  times[1]-times[0];
 		delta_T2 =  times[3]-times[2];
-		
-		times[1]=times[1]-Delta_T1_Cor;
-		times[3]=times[3]-Delta_T2_Cor;
 
 
 		timeDiff = (times[0]+times[1]-times[2]-times[3])/2 +10;
@@ -442,16 +453,22 @@ int main(int argc, char **argv){
 		GOE1 = (integrals_cor[1]-integrals_cor[0])/(integrals_cor[0]+integrals_cor[1]);
 		GOE2 = (integrals_cor[3]-integrals_cor[2])/(integrals_cor[2]+integrals_cor[3]);
 		
-		timeDiffcor1 = timeDiff - GravityOfEnergy1*GOE_cor1;
-		timeDiffcor2 = timeDiff - GravityOfEnergy2*GOE_cor2;
-	        timeDiffcor12 =timeDiff - GravityOfEnergy2*GOE_cor2 - GravityOfEnergy1*GOE_cor1;
+		timeDiffgoecor1 = timeDiff - GravityOfEnergy1*GOE_cor1;
+		timeDiffdtcor1 = timeDiff - delta_T1*Delta_T1_Cor_0 -delta_T1*delta_T1*Delta_T1_Cor_1 -TMath::Power(delta_T1,3)*Delta_T1_Cor_2;
+
+		timeDiffdtcor2 = timeDiff -delta_T2*Delta_T2_Cor;
+		timeDiffgoecor2 =timeDiff -GOE2*GOE_cor2;
+
+		//	        timeDiffcor12 =timeDiff - GravityOfEnergy2*GOE_cor2 - GravityOfEnergy1*GOE_cor1;
 	      
-	      //		timeDiffcor1 = timeDiff - GravityOfEnergy1*(0.113013);
+		//		timeDiffcor1 = timeDiff - GravityOfEnergy1*(0.113013);
 		//
 		//	timeDiffcor12 =timeDiff - GravityOfEnergy2*(-0.0449815) - GravityOfEnergy1*(0.113013);
 		// -0.0449815 correcions determinded on GOE2:time_diffcor1
-				
-		outT->Fill();
+		if(! makeTraces){
+		  outT->Fill();
+
+		}
 	      }
 	    }
 	  }
@@ -489,7 +506,8 @@ int main(int argc, char **argv){
       cout<<"On event "<<jentry<<endl;
 
     //Fill the tree
-    //    outT->Fill();
+    if (makeTraces)
+      outT->Fill();
     
   }//End for
 

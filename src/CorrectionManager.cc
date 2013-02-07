@@ -45,10 +45,10 @@ void CorrectionManager::loadFile(int runNum){
 
   if (file.is_open()){
     double val;
-    string tag;
+    string tag,trash;
     
     while (file.good()){
-      file>>tag>>val;
+      file>>trash>>tag>>val;
       addEntry(tag,val);
       
     }
