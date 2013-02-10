@@ -241,3 +241,27 @@ Double_t Filter::fitTrace(std::vector <UShort_t> & trace,Double_t sigma,Double_t
   
   return mu;
 }
+
+Double_t Filter::getEnergy(std::vector <UShort_t> &trace){
+  
+  Double_t thisEventsIntegral;
+  Double_t sum=0;
+  Double_t signalTotalIntegral=0;
+  for ( int i=0 ;i<10;i++)
+    sum = sum + trace[i]+trace[trace.size()-1-i];
+  sum = sum/20.0; // average of first and last 10 points should be pretty good background
+  for (int i=0;i< (int) trace.size();++i) {
+    signalTotalIntegral = trace[i]+ signalTotalIntegral;
+  }
+  if (  signalTotalIntegral - sum *trace.size() > 0 )
+    thisEventsIntegral = signalTotalIntegral - sum *trace.size();
+  else{
+    thisEventsIntegral = BAD_NUM;
+  }
+
+
+  return thisEventsIntegral;
+
+
+
+}

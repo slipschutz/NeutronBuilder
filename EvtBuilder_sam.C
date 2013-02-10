@@ -112,7 +112,8 @@ int main(int argc, char **argv){
   Double_t FG=theInputManager.FG;
   int CFD_delay=theInputManager.d; //in clock ticks
   Double_t CFD_scale_factor =theInputManager.w;
-     
+  Bool_t correctionRun =theInputManager.correction;
+
   CorrectionManager corMan;
   corMan.loadFile(runNum);
   Double_t SDelta_T1_Cor=corMan.get("sdt1");
@@ -136,24 +137,33 @@ int main(int argc, char **argv){
   TTree  *outT;
   FileManager * fileMan = new FileManager();
   fileMan->timingMode = theInputManager.timingMode;
-  TChain * inT= new TChain("dchan");
- 
-  if (numFiles == -1 ){
-    TString s = fileMan->loadFile(runNum,0);
-    inT->Add(s);
-  } else {
-    for (Int_t i=0;i<numFiles;i++) {
-      TString s = fileMan->loadFile(runNum,i);
+  TChain * inT;
+
+  if (!correctionRun){
+    inT= new TChain("dchan");
+    if (numFiles == -1 ){
+      TString s = fileMan->loadFile(runNum,0);
       inT->Add(s);
+    } else {
+      for (Int_t i=0;i<numFiles;i++) {
+	TString s = fileMan->loadFile(runNum,i);
+	inT->Add(s);
+      }
     }
+  } else {
+    inT= new TChain("flt");
+    inT->Add((TString)theInputManager.specificFileName);
   }
-  inT->SetMakeClass(1);
-  Long64_t nentry=(Long64_t) (inT->GetEntries());
+    inT->SetMakeClass(1);
+    Long64_t nentry=(Long64_t) (inT->GetEntries());
 
   cout <<"The number of entires is : "<< nentry << endl ;
 
+
   // Openning output Tree and output file
-  if (extFlag == false && ext_sigma_flag==false)
+  if (correctionRun)
+    outFile=fileMan->getOutputFile(theInputManager.specificFileName);
+  else if (extFlag == false && ext_sigma_flag==false)
     outFile = fileMan->getOutputFile();
   else if (extFlag == true && ext_sigma_flag==false){
     CFD_scale_factor = CFD_scale_factor/10.0; //bash script does things in whole numbers
@@ -172,7 +182,7 @@ int main(int argc, char **argv){
     }
   ////////////////////////////////////////////////////////////////////////////////////
   
-  
+  Int_t numOfChannels=4;  
   // set input tree branvh variables and addresses
   ////////////////////////////////////////////////////////////////////////////////////
   Int_t chanid;
@@ -184,22 +194,38 @@ int main(int argc, char **argv){
   UInt_t timelow; // this used to be usgined long
   UInt_t timehigh; // this used to be usgined long
   UInt_t timecfd ; 
-  //In put tree branches    
-  inT->SetBranchAddress("chanid", &chanid);
-  inT->SetBranchAddress("fUniqueID", &fUniqueID);
-  inT->SetBranchAddress("energy", &energy);
-  inT->SetBranchAddress("timelow", &timelow);
-  inT->SetBranchAddress("timehigh", &timehigh);
-  inT->SetBranchAddress("trace", &trace);
-  inT->SetBranchAddress("timecfd", &timecfd);
-  inT->SetBranchAddress("slotid", &slotid);
-  inT->SetBranchAddress("time", &time);
+  Double_t correlatedTimes_in[numOfChannels];
+  Double_t integrals_in[numOfChannels];
+  if (! correctionRun ){
+    //In put tree branches    
+    inT->SetBranchAddress("chanid", &chanid);
+    inT->SetBranchAddress("fUniqueID", &fUniqueID);
+    inT->SetBranchAddress("energy", &energy);
+    inT->SetBranchAddress("timelow", &timelow);
+    inT->SetBranchAddress("timehigh", &timehigh);
+    inT->SetBranchAddress("trace", &trace);
+    inT->SetBranchAddress("timecfd", &timecfd);
+    inT->SetBranchAddress("slotid", &slotid);
+    inT->SetBranchAddress("time", &time);
+  } else {
+    inT->SetBranchAddress("Time0",&correlatedTimes_in[0]);
+    inT->SetBranchAddress("Time1",&correlatedTimes_in[1]);
+    inT->SetBranchAddress("Time2",&correlatedTimes_in[2]);
+    inT->SetBranchAddress("Time3",&correlatedTimes_in[3]);
+
+    inT->SetBranchAddress("Integral0",&integrals_in[0]);
+    inT->SetBranchAddress("Integral1",&integrals_in[1]);
+    inT->SetBranchAddress("Integral2",&integrals_in[2]);
+    inT->SetBranchAddress("Integral3",&integrals_in[3]);
+
+  }
+  
   ////////////////////////////////////////////////////////////////////////////////////
 
 
   //set output tree branches and varibables 
   ////////////////////////////////////////////////////////////////////////////////////
-  Int_t numOfChannels=4;
+
 
   vector <Sl_Event> previousEvents;
   Double_t sizeOfRollingWindow=4;
@@ -245,6 +271,13 @@ int main(int argc, char **argv){
   outT->Branch("Integral1_cor",&integrals_cor[1],"Integral1_cor/D");
   outT->Branch("Integral2_cor",&integrals_cor[2],"Integral2_cor/D");
   outT->Branch("Integral3_cor",&integrals_cor[3],"Integral3_cor/D");
+
+  Double_t correlatedTimes[numOfChannels];
+  outT->Branch("Time0",&correlatedTimes[0],"Time0/D");
+  outT->Branch("Time1",&correlatedTimes[1],"Time1/D");
+  outT->Branch("Time2",&correlatedTimes[2],"Time2/D");
+  outT->Branch("Time3",&correlatedTimes[3],"Time3/D");
+
 
 
   Double_t delta_T1;
@@ -379,21 +412,9 @@ int main(int argc, char **argv){
 	}
       }
     }
+    if (!correctionRun)
+      thisEventsIntegral = theFilter.getEnergy(trace);
     
-    Double_t sum=0;
-    Double_t signalTotalIntegral=0;
-    for ( int i=0 ;i<10;i++)
-      sum = sum + trace[i]+trace[trace.size()-1-i];
-    sum = sum/20.0; // average of first and last 10 points should be pretty good background
-    for (int i=0;i< (int) trace.size();++i) {
-      signalTotalIntegral = trace[i]+ signalTotalIntegral;
-    }
-    if (  signalTotalIntegral - sum *trace.size() > 0 ) 
-      thisEventsIntegral = signalTotalIntegral - sum *trace.size();
-    else{
-      thisEventsIntegral = BAD_NUM;
-    }
-    //set the energy in the filterd tree
 
     
     if ( previousEvents.size() >= sizeOfRollingWindow )
@@ -406,7 +427,8 @@ int main(int argc, char **argv){
 	    vector <Double_t> times; // there are only 4 channels
 	    vector <Double_t> integrals_extra(20,0);
 	    vector <Double_t> integrals_ordered;
-
+	    vector <Double_t> times_cor(4,0);
+	    
 	    for (Int_t i=0;i<previousEvents.size();i++){
 	      times_extra[previousEvents[i].channel]=previousEvents[i].time;
 	      integrals_extra[previousEvents[i].channel]=previousEvents[i].integral;
@@ -425,18 +447,23 @@ int main(int argc, char **argv){
 	      if ( times[0] != BAD_NUM &&  times[1] != BAD_NUM && times[2] != BAD_NUM&& times[3] != BAD_NUM){
 		//Good Event
 
-		times[1]=times[1]-SDelta_T1_Cor;
-		times[3]=times[3]-SDelta_T2_Cor;
-		delta_T1 =  times[1]-times[0];
-		delta_T2 =  times[3]-times[2];
+		times_cor[1]=times[1]-SDelta_T1_Cor;
+		times_cor[3]=times[3]-SDelta_T2_Cor;
+		times_cor[0]=times[0];
+		times_cor[2]=times[2];
+		delta_T1 =  times_cor[1]-times_cor[0];
+		delta_T2 =  times_cor[3]-times_cor[2];
 
 
-		timeDiff = (times[0]+times[1]-times[2]-times[3])/2 +10;
-		timeDiff1 = (times[0]-times[2]) +10;
-		timeDiff2 = (times[1]-times[3]) +10;
-		timeDiff3 = (times[0]-times[3]) +10;
-		timeDiff4 = (times[1]-times[2]) +10;	      
-		
+		timeDiff = (times_cor[0]+times_cor[1]-times_cor[2]-times_cor[3])/2 +10;
+		timeDiff1 = (times_cor[0]-times_cor[2]) +10;
+		timeDiff2 = (times_cor[1]-times_cor[3]) +10;
+		timeDiff3 = (times_cor[0]-times_cor[3]) +10;
+		timeDiff4 = (times_cor[1]-times_cor[2]) +10;	      
+		//save times for later analyses with corrections
+		for (int q=0;q<numOfChannels;q++)
+		  correlatedTimes[q]=times[q];
+
 		
 		
 		for (int q=0;q<integrals_ordered.size();q++){
@@ -453,7 +480,7 @@ int main(int argc, char **argv){
 		GOE1 = (integrals_cor[1]-integrals_cor[0])/(integrals_cor[0]+integrals_cor[1]);
 		GOE2 = (integrals_cor[3]-integrals_cor[2])/(integrals_cor[2]+integrals_cor[3]);
 		
-		timeDiffgoecor1 = timeDiff - GravityOfEnergy1*GOE_cor1;
+		timeDiffgoecor1 = timeDiff - GOE1*GOE_cor1;
 		timeDiffdtcor1 = timeDiff - delta_T1*Delta_T1_Cor_0 -delta_T1*delta_T1*Delta_T1_Cor_1 -TMath::Power(delta_T1,3)*Delta_T1_Cor_2;
 
 		timeDiffdtcor2 = timeDiff -delta_T2*Delta_T2_Cor;
@@ -476,8 +503,17 @@ int main(int argc, char **argv){
     //over write the time when in trace fitting mode or software CFD mode
     if (theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "fitting")
       time = softwareCFD ;
+    Int_t loop=1;
+    if (correctionRun)
+      loop=numOfChannels;
 
-
+    for(int l=0;l<loop;l++){
+      if (correctionRun){
+	chanid=l;//the Events were ordered in the previous building
+	thisEventsIntegral=integrals_in[l];
+	time=correlatedTimes_in[l];
+      }
+      
       //Keep the previous event info for correlating      
       if (previousEvents.size() < sizeOfRollingWindow  ) 
 	{
@@ -499,8 +535,7 @@ int main(int argc, char **argv){
 	  e.softwareCFD = softwareCFD;
 	  previousEvents.push_back(e);	  
 	}
-  
-
+    }
     //Periodic printing
     if (jentry % 10000 == 0 )
       cout<<"On event "<<jentry<<endl;

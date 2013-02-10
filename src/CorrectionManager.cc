@@ -56,9 +56,27 @@ void CorrectionManager::loadFile(int runNum){
   } else {
     cout<<"Correction file not found!"<<endl;
     cout<<"Using defualts"<<endl;
-    loadFile(0);
-  }
+    s.str("");
+    runNum=0;
+    s<<"corrections_run_"<<runNum<<".txt";
 
+    ifstream file;
+    file.open(s.str().c_str());
+
+    if (file.is_open()){
+      double val;
+      string tag,trash;
+
+      while (file.good()){
+	file>>trash>>tag>>val;
+	addEntry(tag,val);
+
+      }
+      file.close();
+    } else{
+      cout<<"No correction files found"<<endl;
+    }
+  }
 }
 CorrectionManager::CorrectionManager(){}
 

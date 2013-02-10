@@ -114,4 +114,17 @@ TFile * FileManager::getOutputFile(Double_t sigma){
 
 
 }
+TFile *FileManager::getOutputFile(string s){
+  TFile* temp =new TFile(s.c_str(),"recreate");
+  outputFileName.str(s);
 
+  if(!temp)
+    {
+      cout << "\nCould not open " << outputFileName.str() <<endl;
+      exit(-1);
+    } else
+    cout << "Opened output file " <<outputFileName.str()<< endl;
+
+  return temp;
+
+}

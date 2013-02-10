@@ -21,9 +21,12 @@ public:
   Int_t numFiles,runNum;
 
   Bool_t makeTraces,ext_flag;
+  Bool_t correction;
   
   string timingMode;
   Double_t FL,FG,d,w;
+
+  string specificFileName;
 
   Double_t sigma;
 
@@ -33,10 +36,6 @@ private:
   vector <string> split (const string &s, char delim);
 
   Bool_t checkValues();
-
-
-
-
   
   vector<string> validTimingModes;
   void dumpValidModes();

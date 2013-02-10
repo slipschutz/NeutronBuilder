@@ -15,7 +15,8 @@ public:
   TFile * getOutputFile();
   TFile * getOutputFile(Double_t FL, Double_t FG, Double_t d, Double_t w);
   TFile * getOutputFile(Double_t sigma);
-  
+
+  TFile *getOutputFile(string );
 
   //File name streams
   std::stringstream fileName;

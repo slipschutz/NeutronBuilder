@@ -17,6 +17,9 @@ InputManager::InputManager()
   numFiles=1;//assume 1 file
   timingMode="softwareCFD";
   makeTraces=false;
+  correction=false;
+
+  specificFileName="";
 
   //defualt Filter settings see pixie manual
   FL=2;
@@ -99,6 +102,17 @@ Bool_t InputManager::loadInputs(vector <string> & inputs){
 	cout<<"makeTraces needs to be true or false"<<endl;
 	return false;
       }
+    } else if (flags[i]=="correction"){
+      if (arguments[i] == "true" ){
+        correction=true;
+      } else if (arguments[i] =="false" ){
+        correction =false;
+      }else {
+        cout<<"correction needs to be true or false"<<endl;
+        return false;
+      }
+    } else if (flags[i] == "inputFile"){
+      specificFileName=arguments[i];
     } else if (flags[i] == "FL"){
       FL=atof(arguments[i].c_str() );ext_flag=true;
     } else if (flags[i] == "FG" ){
@@ -141,7 +155,17 @@ Bool_t InputManager::checkValues()
     dumpValidModes();
   }
 
-
+  if (correction==true && specificFileName==""){
+    nothingWrong =false;
+    cout<<"You must specify an inputFile when running a corrections run"<<endl;
+  }
+  
+  if (correction==false && specificFileName!=""){
+    nothingWrong=false;
+    cout<<"Specifying File only valid for correction run mode"<<endl;
+  }
+   
+    
 
   if (timingMode != "fitting" && ext_sigma_flag == true ){
     cout<<"Can't set sigma without setting the timingMode to fitting "<<endl;
