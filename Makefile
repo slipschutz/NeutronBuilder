@@ -4,7 +4,8 @@ LDLIBS=`root-config --glibs`
 LDFLAGS=`root-config --ldflags`
 #SOURCES=./src/SL_Event.cc ./src/FileManager.cc ./src/Filter.cc
 SOURCES=$(shell ls ./src/*.cc)
-TEMP=$(SOURCES:.cc=.cc~)
+TEMP=$(shell ls ./src/*.cc~)
+TEMP2=$(shell ls ./include/*.hh~)
 OBJECTS=$(SOURCES:.cc=.o) 
 MAIN=EvtBuilder_sam.C
 MAINO=./src/EvtBuilder_sam.o
@@ -15,7 +16,7 @@ INCLUDEPATH=include
 SRCPATH=src
 
 
-.PHONY: clean get put all
+.PHONY: clean get put all test sclean
 
 all: $(EXECUTABLE) 
 
@@ -53,7 +54,10 @@ clean:
 	-rm ./$(EXECUTABLE)
 	-rm ./$(MAINO)
 
-test:
-	@echo $(TEMP)
-	-rm $(TEMP)
-	@echo $(OBJECTS)
+sclean:
+	-rm ./$(TEMP)
+	-rm ./$(TEMP2)
+	-rm ./$(OBJECTS)
+	-rm ./$(EXECUTABLE)
+	-rm ./$(MAINO)
+
