@@ -7,10 +7,10 @@ SOURCES=$(shell ls ./src/*.cc)
 TEMP=$(shell ls ./src/*.cc~)
 TEMP2=$(shell ls ./include/*.hh~)
 OBJECTS=$(SOURCES:.cc=.o) 
-MAIN=EvtBuilder_sam.C
-MAINO=./src/EvtBuilder_sam.o
+MAIN=NeutronBuilder.C
+MAINO=./src/NeutronBuilder.o
 
-EXECUTABLE= EvtBuilder
+EXECUTABLE=NeutronBuilder
 
 INCLUDEPATH=include
 SRCPATH=src
