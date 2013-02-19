@@ -123,13 +123,31 @@ int main(int argc, char **argv){
   int_corrections[1]=corMan.get("int1");
   int_corrections[2]=corMan.get("int2");
   int_corrections[3]=corMan.get("int3");
-  Double_t GOE_cor1 = corMan.get("goe1");
-  Double_t GOE_cor2 = corMan.get("goe2");
-  Double_t Delta_T1_Cor_0 =corMan.get("dt1_0");
-  Double_t Delta_T1_Cor_1 =corMan.get("dt1_1");
-  Double_t Delta_T1_Cor_2 =corMan.get("dt1_2");
+  
+  int degree=3;
+  Double_t GOE_cor1[degree];
+  Double_t GOE_cor2[degree];
+  Double_t DeltaT_cor1[degree];
+  Double_t DeltaT_cor2[degree];
+  std::stringstream temp;
+  for (int i=1;i<=degree;i++){
+    temp.str("");
+    temp<<"goe1_"<<i;
+    GOE_cor1[i-1]=corMan.get(temp.str().c_str());
+    temp.str("");
+    temp<<"goe2_"<<i;
+    GOE_cor2[i-1]=corMan.get(temp.str().c_str());
 
-  Double_t Delta_T2_Cor =corMan.get("dt2");
+    temp.str("");
+    temp<<"dt1_"<<i;
+    DeltaT_cor1[i-1]=corMan.get(temp.str().c_str());
+
+    temp.str("");
+    temp<<"dt2_"<<i;
+    DeltaT_cor1[i-1]=corMan.get(temp.str().c_str());
+  }
+
+
 
   //prepare files and output tree
   ////////////////////////////////////////////////////////////////////////////////////
@@ -412,15 +430,22 @@ int main(int argc, char **argv){
 	}
       }
     }
-    if (!correctionRun)
-      thisEventsIntegral = theFilter.getEnergy(trace);
-    
 
+    if (!correctionRun && trace.size()!=0)
+      thisEventsIntegral = theFilter.getEnergy(trace);
+    else if (trace.size() == 0) {
+      if (energy ==0)
+	thisEventsIntegral=BAD_NUM;
+      else
+	thisEventsIntegral=energy;
+    }
     
     if ( previousEvents.size() >= sizeOfRollingWindow )
       {
 	if ( checkChannels(previousEvents) )
 	  { // there are all four channels
+
+
 
 	    //for cable arrangement independance
 	    vector <Double_t> times_extra(20,0);
@@ -430,6 +455,7 @@ int main(int argc, char **argv){
 	    vector <Double_t> times_cor(4,0);
 	    
 	    for (Int_t i=0;i<previousEvents.size();i++){
+
 	      times_extra[previousEvents[i].channel]=previousEvents[i].time;
 	      integrals_extra[previousEvents[i].channel]=previousEvents[i].integral;
 	    }
@@ -473,19 +499,34 @@ int main(int argc, char **argv){
 		  integrals_cor[q]=integrals[q]*int_corrections[q];
 		}
 		
-		
-				
 		GravityOfEnergy1 = (integrals[1]-integrals[0])/(integrals[0]+integrals[1]);
 		GravityOfEnergy2 = (integrals[3]-integrals[2])/(integrals[2]+integrals[3]);
 		GOE1 = (integrals_cor[1]-integrals_cor[0])/(integrals_cor[0]+integrals_cor[1]);
 		GOE2 = (integrals_cor[3]-integrals_cor[2])/(integrals_cor[2]+integrals_cor[3]);
-		
-		timeDiffgoecor1 = timeDiff - GOE1*GOE_cor1;
+
+		vector <Double_t> tot(4,0); //there are 2 GOE corrections and 2 dt corrections
+		for (int q=1;q<=degree;q++){
+		  if (TMath::Abs(GOE1)<1)
+		    tot[0]=tot[0]+GOE_cor1[q-1]*TMath::Power(GOE1,q);
+		  if (TMath::Abs(GOE2)<1)
+                    tot[1]=tot[1]+GOE_cor2[q-1]*TMath::Power(GOE2,q);
+		  if (TMath::Abs(delta_T1)<1)
+                    tot[2]=tot[2]+DeltaT_cor1[q-1]*TMath::Power(delta_T1,q);
+		  if (TMath::Abs(delta_T2)<1)
+                    tot[3]=tot[3]+DeltaT_cor2[q-1]*TMath::Power(delta_T2,q);
+		}
+		timeDiffgoecor1=timeDiff-tot[0];
+		timeDiffgoecor2=timeDiff-tot[1]-tot[0];
+		timeDiffdtcor1=timeDiff-tot[2];
+		timeDiffdtcor2=timeDiff-tot[3]-tot[2];
+
+		/*		timeDiffgoecor1 = timeDiff - GOE1*GOE_cor1;
 		timeDiffdtcor1 = timeDiff - delta_T1*Delta_T1_Cor_0 -delta_T1*delta_T1*Delta_T1_Cor_1 -TMath::Power(delta_T1,3)*Delta_T1_Cor_2;
 
 		timeDiffdtcor2 = timeDiff -delta_T2*Delta_T2_Cor;
-		timeDiffgoecor2 =timeDiff -GOE2*GOE_cor2;
 
+		timeDiffgoecor2 =timeDiff -GOE2*GOE_cor2-GOE1*GOE_cor1;
+		*/
 		//	        timeDiffcor12 =timeDiff - GravityOfEnergy2*GOE_cor2 - GravityOfEnergy1*GOE_cor1;
 	      
 		//		timeDiffcor1 = timeDiff - GravityOfEnergy1*(0.113013);

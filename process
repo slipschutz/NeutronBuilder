@@ -51,12 +51,10 @@ if [ $doDDASdump -eq 1 ]; then
     for ((i=0;i<$num;i++)); do
 	
 	if [ $i -lt 10 ]; then
-##	    ./ddasdumper --source=file:///mnt/daqtesting/lenda/experiment/run${runNum}/run-0${runNum}-0${i}.evt --fileout=/mnt/daqtesting/lenda/rootfiles/run-0${runNum}-0${i}.root
 	    ./ddasdumper --source=file://${path_evt}/run-0${runNum}-0${i}.evt --fileout=${path_root}/run-0${runNum}-0${i}.root
 	fi
 	
 	if [ $i -ge 10 ]; then
-##	    ./ddasdumper --source=file:///mnt/daqtesting/lenda/experiment/run${runNum}/run-0${runNum}-${i}.evt --fileout=/mnt/daqtesting/lenda/rootfiles/run-0${runNum}-${i}.root
 	    ./ddasdumper --source=file://${path_evt}/run-0${runNum}-${i}.evt --fileout=${path_root}/run-${runNum}-${i}.root
 	fi
     done
