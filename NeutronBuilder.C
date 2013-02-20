@@ -18,7 +18,7 @@
 #include "TChain.h"
 
 //Local Headers
-#include "SL_Event.h"
+#include "SL_Event.hh"
 #include "Filter.hh"
 #include "FileManager.h"
 #include "InputManager.hh"
@@ -37,22 +37,17 @@ struct Sl_Event {
   Double_t softwareCFD;
 };
 
-Bool_t checkChannels(Int_t a,Int_t b){
-  if (TMath::Abs(a-b) == 1)
-    return true;
-  else
-    return false;
-}
+
 
 Bool_t checkChannels(vector <Sl_Event> &in){
 
   vector <Bool_t> ch(20,false);  //to make this work with different cable arrangements
 
   for (int i=0;i<in.size();i++){
-    if (in[i].channel<14)
       ch[in[i].channel]=true;
   }
-  // if it was a good event there should be 4 trues
+  // if it was a good event there should be 3 trues
+  //from 3 different channels
   int count=0;
   for (int i=0;i <ch.size();i++){
     if (ch[i]==true){
@@ -60,7 +55,7 @@ Bool_t checkChannels(vector <Sl_Event> &in){
     }
   }
   
-  if (count == 4)
+  if (count == 3)
     return true;
   else 
     return false;
@@ -81,7 +76,7 @@ int main(int argc, char **argv){
     inputs.push_back(string(argv[i]));
   }
   if (inputs.size() == 0 ){ // no argumnets display helpful message
-    cout<<"Usage: ./EvtBuilder runNumber [options:value]"<<endl;
+    cout<<"Usage: ./NeutronBuilder runNumber [options:value]"<<endl;
     return 0;
   }  
   
@@ -246,7 +241,7 @@ int main(int argc, char **argv){
 
 
   vector <Sl_Event> previousEvents;
-  Double_t sizeOfRollingWindow=4;
+  Double_t sizeOfRollingWindow=3;  //Require that a lenda bar fired in both PMTS and one liquid scint
   
   //Out put tree branches 
   Double_t timeDiff,timeDiff1,timeDiff2,timeDiff3,timeDiff4; 
@@ -257,10 +252,7 @@ int main(int argc, char **argv){
   
   outT->Branch("Time_Diff",&timeDiff,"Time_Diff/D");
 
-  outT->Branch("Time_Diff1",&timeDiff1,"Time_Diff1/D");
-  outT->Branch("Time_Diff2",&timeDiff2,"Time_Diff2/D");
-  outT->Branch("Time_Diff3",&timeDiff3,"Time_Diff3/D");
-  outT->Branch("Time_Diff4",&timeDiff4,"Time_Diff4/D");
+
 
   outT->Branch("Time_Diffgoecor1",&timeDiffgoecor1,"Time_Diffgoecor1/D");
   outT->Branch("Time_Diffdtcor1",&timeDiffdtcor1,"Time_Diffdtcor1/D");
@@ -321,20 +313,19 @@ int main(int argc, char **argv){
   TH2F *filters = new TH2F("filters","The filters",200,0,200,10000,-1000,4000);
   TH2F *CFDs  = new TH2F("CFDs","The CFDs",200,0,200,10000,-1000,1000);
 
-  TGraph * traces2 = new TGraph(200);
+  SL_Event* Event = new SL_Event();
+  outT->Branch("Event",&Event,20000000);
+  outT->BranchRef();
+  //  TGraph * traces2 = new TGraph(200);
 
   if (makeTraces) //adding the branches to the tree slows things down   
     {             //so only do it if you really want them
       outT->Branch("Traces","TH2F",&traces,128000,0);  
       outT->Branch("Filters","TH2F",&filters,12800,0);
       outT->Branch("CFDs","TH2F",&CFDs,12800,0);
-      outT->Branch("Traces2","TGraph",&traces2,128000,0);
+      //      outT->Branch("Traces2","TGraph",&traces2,128000,0);
     }
-  Double_t eventNum;
-  outT->Branch("Jentry",&eventNum,"Jengrty/D");
-  
-  Double_t eventTriggerNum;
-  outT->Branch("EventTriggerNum",&eventTriggerNum,"EventTriggerNum/D");
+
   ////////////////////////////////////////////////////////////////////////////////////
 
   if(maxentry == -1)
@@ -365,15 +356,12 @@ int main(int argc, char **argv){
   for (Long64_t jentry=0; jentry<maxentry;jentry++) { // Main analysis loop
     
     inT->GetEntry(jentry); // Get the event from the input tree 
-    eventNum=jentry;
+
     if (normalSet == false)
       chanid=slotid;
     
     //initializations for branch variables
     ///////////////////////////////////////////////////////////////////////////////////////////
-    eventTriggerNum=0;//its 0 when there is no correlated event found on this loop
-    //set to one below if there was a correlated event fround in the 
-    //previous set of events (sizeOfRollingWindow)
     timeDiffRaw=0;     //TimeDiffRaw is just the difference between the previous event and
                        //the current one
     timeDiff = BAD_NUM;  //make it something random to distinguish uncorrleated events  
@@ -394,8 +382,7 @@ int main(int argc, char **argv){
     thisEventsCFD.clear();//Clear the CFD vector 
     thisEventsFF.clear();//Clear this events fast filter
     
-    if (makeTraces) //reset histograms if makeTraces is on
-      {
+    if (makeTraces){ //reset histograms if makeTraces is on
 	traces->Reset();
 	filters->Reset();
 	CFDs->Reset();
@@ -403,7 +390,7 @@ int main(int argc, char **argv){
     
     ///////////////////////////////////////////////////////////////////////////////////////////
 
-
+    Event->channel =5;
     
     //Time_diff raw 
     timeDiffRaw = time - prevTime;
@@ -418,7 +405,7 @@ int main(int argc, char **argv){
 	if (makeTraces )	{
 	  for (int i=0;i< (int) trace.size();i++) {
 	    traces->Fill(i,trace[i]);	
-	    traces2->SetPoint(i,i,trace[i]);
+	    //	    traces2->SetPoint(i,i,trace[i]);
 	    filters->Fill(i, thisEventsFF[i]);
 	  }
 	}
@@ -442,10 +429,8 @@ int main(int argc, char **argv){
     
     if ( previousEvents.size() >= sizeOfRollingWindow )
       {
-	if ( checkChannels(previousEvents) )
-	  { // there are all four channels
-
-
+	if ( checkChannels(previousEvents) )//prelinary check to see if there are 3 distinict channels in set
+	  { // there are some amount of channels
 
 	    //for cable arrangement independance
 	    vector <Double_t> times_extra(20,0);
@@ -453,9 +438,7 @@ int main(int argc, char **argv){
 	    vector <Double_t> integrals_extra(20,0);
 	    vector <Double_t> integrals_ordered;
 	    vector <Double_t> times_cor(4,0);
-	    
 	    for (Int_t i=0;i<previousEvents.size();i++){
-
 	      times_extra[previousEvents[i].channel]=previousEvents[i].time;
 	      integrals_extra[previousEvents[i].channel]=previousEvents[i].integral;
 	    }
@@ -482,10 +465,7 @@ int main(int argc, char **argv){
 
 
 		timeDiff = (times_cor[0]+times_cor[1]-times_cor[2]-times_cor[3])/2 +10;
-		timeDiff1 = (times_cor[0]-times_cor[2]) +10;
-		timeDiff2 = (times_cor[1]-times_cor[3]) +10;
-		timeDiff3 = (times_cor[0]-times_cor[3]) +10;
-		timeDiff4 = (times_cor[1]-times_cor[2]) +10;	      
+	
 		//save times for later analyses with corrections
 		for (int q=0;q<numOfChannels;q++)
 		  correlatedTimes[q]=times[q];

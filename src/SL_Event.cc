@@ -1,6 +1,6 @@
 
 
-#include "SL_Event.h"
+#include "SL_Event.hh"
 #include <iostream>
 using namespace std;
 
@@ -9,6 +9,5 @@ using namespace std;
 SL_Event::SL_Event()
 {
 
-  cout<<"HERE I AM"<<endl;
 
 }

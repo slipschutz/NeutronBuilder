@@ -1,0 +1,19 @@
+shift_t1	sdt1		0
+shift_t2	sdt2		0
+gain_cor	int0		1
+gain_cor	int1		1
+gain_cor	int2		1
+gain_cor	int3		1
+pos_cor		goe1_1		0
+pos_cor		goe1_2		0
+pos_cor		goe1_3		0
+pos_cor		goe2_1		0
+pos_cor		goe2_2		0
+pos_cor		goe2_3		0
+pos_cor		dt1_1		0
+pos_cor		dt1_2		0
+pos_cor		dt1_3		0
+pos_cor		dt2_1		0
+pos_cor		dt2_2		0
+pos_cor		dt2_3		0
+
