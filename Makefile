@@ -1,7 +1,7 @@
-CXX=`root-config --cxx`
-CFLAGS=-c -g -Wall `root-config --cflags` -I./src -I ./include
-LDLIBS=`root-config --glibs`
-LDFLAGS=`root-config --ldflags`
+CXX=$(shell root-config --cxx)
+CFLAGS=-c -g -Wall $(shell root-config --cflags) -I./src -I ./include
+LDLIBS=$(shell root-config --glibs)
+LDFLAGS=$(shell root-config --ldflags)
 #SOURCES=./src/SL_Event.cc ./src/FileManager.cc ./src/Filter.cc
 SOURCES=$(shell ls ./src/*.cc)
 TEMP=$(shell ls ./src/*.cc~)
@@ -14,17 +14,22 @@ EXECUTABLE=NeutronBuilder
 
 INCLUDEPATH=include
 SRCPATH=src
+ROOTCINT=rootcint
+DICTNAME    = SL_Event
+DICTOBJ     = $(addsuffix Dictionary.o, $(DICTNAME))
+
 
 
 .PHONY: clean get put all test sclean
 
 all: $(EXECUTABLE) 
 
-$(EXECUTABLE) : $(OBJECTS) $(MAINO)
+$(EXECUTABLE) : $(OBJECTS) $(MAINO) $(DICTOBJ)
 	@echo "Building target" $@ "..." 
-	@$(CXX) $(LDFLAGS) -o $@ $(OBJECTS) $(MAINO) $(LDLIBS)
+	$(CXX) $(LDFLAGS) -o $@ $(OBJECTS)$(DICTOBJ) $(MAINO) $(LDLIBS)
 	@echo
 	@echo "Build succeed"
+
 
 
 .cc.o:
@@ -34,6 +39,12 @@ $(EXECUTABLE) : $(OBJECTS) $(MAINO)
 $(MAINO): $(MAIN)
 	@echo "Compiling" $< "..."
 	@$(CXX) $(CFLAGS) $< -o $@  
+
+
+%Dictionary.o: include/%.hh src/%LinkDef.h
+	$(ROOTCINT) -f $(patsubst %.o,%.cc,$@) -c $^;
+	$(CXX) -p -fPIC $(CFLAGS) -c $(patsubst %.o,%.cc,$@) $(patsubst %.o,%.h,$@)
+
 
 
 get:	

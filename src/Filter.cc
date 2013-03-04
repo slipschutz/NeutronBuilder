@@ -154,7 +154,7 @@ Double_t Filter::GetZeroCrossing(std::vector <Double_t> & CFD){
 
   for (int j=0;j< (int) CFD.size()-1;j++) { 
     if (CFD[j] >= 0 && CFD[j+1] < 0 && 
-	TMath::Abs(CFD[j] - CFD[j+1]) > 15 && j>20)
+	TMath::Abs(CFD[j] - CFD[j+1]) > 20 && j>20)
       {//zero crossing point
 	
 	softwareCFD =j+ CFD[j] / ( CFD[j] + TMath::Abs(CFD[j+1]) );
@@ -248,8 +248,8 @@ Double_t Filter::getEnergy(std::vector <UShort_t> &trace){
   Double_t sum=0;
   Double_t signalTotalIntegral=0;
   for ( int i=0 ;i<10;i++)
-    sum = sum + trace[i]+trace[trace.size()-1-i];
-  sum = sum/20.0; // average of first and last 10 points should be pretty good background
+    sum = sum + trace[i];
+  sum = sum/10.0; // average of first 10 points should be pretty good background
   for (int i=0;i< (int) trace.size();++i) {
     signalTotalIntegral = trace[i]+ signalTotalIntegral;
   }
@@ -262,6 +262,23 @@ Double_t Filter::getEnergy(std::vector <UShort_t> &trace){
 
   return thisEventsIntegral;
 
+}
+Double_t Filter::getGate(std::vector <UShort_t> &trace,int start,int L){
+
+  int size = trace.size();
+  int range =L;
+  int  window = floor( trace.size()/10.0);
+  Double_t bgk=0;
+
+  for (int i=0;i<window;i++){
+    bgk = trace[i]+bgk;
+  }
+  bgk=bgk/(window);
+
+  Double_t total=0;
+  for (int i=start;i<start+L;i++)
+    total =total+trace[i];
 
 
+  return total-(bgk*range);
 }
