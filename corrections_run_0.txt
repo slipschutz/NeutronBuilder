@@ -1,5 +1,5 @@
-shift_t1	sdt1		0
-shift_t2	sdt2		0
+shift_bar1	sdt1		0
+shift_bar2	sdt2		0
 gain_cor	int0		1
 gain_cor	int1		1
 gain_cor	int2		1

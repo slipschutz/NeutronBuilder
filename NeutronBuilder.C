@@ -24,65 +24,15 @@
 #include "InputManager.hh"
 #include "CorrectionManager.hh"
 
+#include "functions.hh"
 #define BAD_NUM -10008
 
 
 
-struct Sl_Event {
-  Int_t channel;
-  vector <UShort_t> trace;
-  Long64_t jentry;
-  Double_t time;
-};
 
 
 
-/*Bool_t checkChannels(vector <Sl_Event> &in){
 
-  vector <Bool_t> ch(20,false);  //to make this work with different cable arrangements
-
-  for (int i=0;i<in.size();i++){
-      ch[in[i].channel]=true;
-  }
-  // if it was a good event there should be 3 trues
-  //from 3 different channels
-  int count=0;
-  int liq_scint_count=0; //there should be only one liq scint
-  // at the moment they are pluged into 8 and 9 so only one of those 
-  //should be there 
-
-
-  int tot =0;
-  for (int i=0;i <ch.size();i++){
-    if (ch[i]==true){
-      count++;
-      if (i==8 || i ==9 ){
-	liq_scint_count++;
-      } else {
-	tot=tot +i;
-      }
-    }
-  }
-  
-  if (count == 3 && liq_scint_count==1 && (tot==1 || tot==5 ))
-    return true;
-  else 
-    return false;
-
-}
-
-
-*/
-Bool_t checkChannels(vector <Sl_Event> &in){
-
-  Bool_t b=false;
-
-  for (int i=0;i<in.size();++i){
-    if (in[i].channel == 8 )
-      b=true;
-  }
-  return b;
-}
 
 
 using namespace std;
@@ -228,6 +178,9 @@ int main(int argc, char **argv){
   UInt_t timecfd ; 
   Double_t correlatedTimes_in[numOfChannels];
   Double_t integrals_in[numOfChannels];
+
+  SL_Event* Event = new SL_Event();
+  SL_Event *inEvent=new SL_Event();//FOr reading in processed trees for corrections 
   if (! correctionRun ){
     //In put tree branches    
     inT->SetBranchAddress("chanid", &chanid);
@@ -240,91 +193,37 @@ int main(int argc, char **argv){
     inT->SetBranchAddress("slotid", &slotid);
     inT->SetBranchAddress("time", &time);
   } else {
-    inT->SetBranchAddress("Time0",&correlatedTimes_in[0]);
-    inT->SetBranchAddress("Time1",&correlatedTimes_in[1]);
-    inT->SetBranchAddress("Time2",&correlatedTimes_in[2]);
-    inT->SetBranchAddress("Time3",&correlatedTimes_in[3]);
-
-    inT->SetBranchAddress("Integral0",&integrals_in[0]);
-    inT->SetBranchAddress("Integral1",&integrals_in[1]);
-    inT->SetBranchAddress("Integral2",&integrals_in[2]);
-    inT->SetBranchAddress("Integral3",&integrals_in[3]);
-
+    inT->SetBranchAddress("Event",&inEvent);
   }
-  
-  ////////////////////////////////////////////////////////////////////////////////////
 
-
-  //set output tree branches and varibables 
-  ////////////////////////////////////////////////////////////////////////////////////
-
-
-  vector <Sl_Event> previousEvents;
-  Double_t sizeOfRollingWindow=1;  //Require that a lenda bar fired in both PMTS and one liquid scint
-  
-  //Out put tree branches 
-
-
-  //Branches for explict trace reconstruction
-  TH2F *traces   = new TH2F("traces","This these are the original traces",200,0,200,10000,-1000,1000);
-  TH2F *filters = new TH2F("filters","The filters",200,0,200,10000,-1000,4000);
-  TH2F *CFDs  = new TH2F("CFDs","The CFDs",200,0,200,10000,-1000,1000);
-
-  SL_Event* Event = new SL_Event();
+  //Specify the output branch
   outT->Branch("Event","SL_Event",&Event,2000000);
   outT->BranchRef();
-  //  TGraph * traces2 = new TGraph(200);
 
-
-  if (makeTraces) //adding the branches to the tree slows things down   
-    {             //so only do it if you really want them
-      outT->Branch("Traces","TH2F",&traces,128000,0);  
-      outT->Branch("Filters","TH2F",&filters,12800,0);
-      outT->Branch("CFDs","TH2F",&CFDs,12800,0);
-      //      outT->Branch("Traces2","TGraph",&traces2,128000,0);
-    }
-
+  ////////////////////////////////////////////////////////////////////////////////////
+  vector <Sl_Event> previousEvents;
+  Double_t sizeOfRollingWindow=3;  //Require that a lenda bar fired in both PMTS and one liquid scint
+  
   ////////////////////////////////////////////////////////////////////////////////////
 
   if(maxentry == -1)
     maxentry=nentry;
   
-  if (makeTraces)
-    maxentry=50;//cap off the number of entries for explict trace making
 
 
 
   //non branch timing variables 
   ////////////////////////////////////////////////////////////////////////////////////
-
+  Double_t softwareCFD;
   Filter theFilter; // Filter object
   ////////////////////////////////////////////////////////////////////////////////////
-  Bool_t normalSet=true;
-  for (Long64_t jentry=0; jentry<10;jentry++){
-    inT->GetEntry(jentry);
-    if(slotid!=2){
-      normalSet=false;
-      break;
-    }
-  }
-  Double_t softwareCFD;
+  
+  
 
   for (Long64_t jentry=0; jentry<maxentry;jentry++) { // Main analysis loop
     
     inT->GetEntry(jentry); // Get the event from the input tree 
-
-    if (normalSet == false)
-      chanid=slotid;
-    
-    
-    if (makeTraces){ //reset histograms if makeTraces is on
-	traces->Reset();
-	filters->Reset();
-	CFDs->Reset();
-      }
-    
     ///////////////////////////////////////////////////////////////////////////////////////////
-
     
     if ( previousEvents.size() >= sizeOfRollingWindow ) {
       if ( checkChannels(previousEvents) )//prelinary check to see if there are 3 distinict channels in set
@@ -348,8 +247,8 @@ int main(int argc, char **argv){
 	    }
 	  }
 
-	  //	  timeDiff =TMath::Abs( events[2]->time - 0.5*(events[0]->time + events[1]->time));
-	  if (true){
+	  timeDiff = 0.5*(events[0]->time + events[1]->time) - events[2]->time;
+	  if (TMath::Abs(timeDiff) <100){
 	    ///Good event
 	    //Run filters and such on these events 
 	    vector <Double_t> thisEventsFF;
@@ -357,31 +256,25 @@ int main(int argc, char **argv){
 	    
 	    for (int i=0;i<events.size();++i){
 	      
-	      if((theInputManager.timingMode == "softwareCFD" || theInputManager.timingMode == "fitting") ){
-		theFilter.FastFilter(events[i]->trace,thisEventsFF,FL,FG);
-	      }
+	      theFilter.FastFilter(events[i]->trace,thisEventsFF,FL,FG);
+
 	      thisEventsCFD = theFilter.CFD(thisEventsFF,CFD_delay,CFD_scale_factor);
 	      softwareCFD = theFilter.GetZeroCrossing(thisEventsCFD);
 	      start = TMath::Floor(softwareCFD) -5;
 	      thisEventsIntegral = theFilter.getEnergy(events[i]->trace);
+	      
+	      
 	      longGate = theFilter.getGate(events[i]->trace,start,25);
-	      shortGate = theFilter.getGate(events[i]->trace,start,12);
+	      shortGate = theFilter.getGate(events[i]->trace,start,14);
 	      
-	      Event->shortGate2 =  theFilter.getGate(events[i]->trace,start,14);
-	      Event->longGate2 =  theFilter.getGate(events[i]->trace,start,25);
-
-	      Event->shortGate3 =  theFilter.getGate(events[i]->trace,start,16);
-	      Event->longGate3 =  theFilter.getGate(events[i]->trace,start,25);
-
-	      Event->shortGate4 =  theFilter.getGate(events[i]->trace,start,18);
-	      Event->longGate4 =  theFilter.getGate(events[i]->trace,start,25);
-	      
-	      Event->Time_Diff = timeDiff;
+	      Event->pushTrace(events[i]->trace);//save the trace for later 
+	      Event->Time_Diff = timeDiff+10;
 	      Event->longGate = longGate;
 	      Event->shortGate = shortGate;
 	      Event->pushChannel(events[i]->channel);
 	      Event->pushEnergy(thisEventsIntegral);
 	      Event->pushTime(events[i]->time);
+	      Event->pushShiftCorrections(SDelta_T1_Cor,SDelta_T2_Cor);
 	    }
 	    Event->Finalize();
 	    outT->Fill();
@@ -390,42 +283,31 @@ int main(int argc, char **argv){
 	  }
 	}
     }
-    
-    
-    
-    
-    
+        
+    if (correctionRun){
+      for (int i=0;i< (inEvent->channels).size();++i){
+	time = (inEvent->times)[i];
+	chanid = (inEvent->channels)[i];
+	trace = (inEvent->traces)[i];
+	pushRollingWindow(previousEvents,sizeOfRollingWindow,
+			  time,chanid,trace,jentry);
+      }
+    } else {
+      
+      pushRollingWindow(previousEvents,sizeOfRollingWindow,
+			time,chanid,trace,jentry);
+    }
+     
+
+
     
       
-    //Keep the previous event info for correlating      
-    if (previousEvents.size() < sizeOfRollingWindow  ) 
-      {
-	Sl_Event e;
-	e.channel=chanid;
-	e.trace=trace;
-	e.jentry=jentry;
-	e.time =time;
-	previousEvents.push_back(e);
-      }
-    else if (previousEvents.size() >= sizeOfRollingWindow )
-      {
-	//So starting on the fith element 
-	previousEvents.erase(previousEvents.begin(),previousEvents.begin() + 1);
-	Sl_Event e;
-	e.channel=chanid;
-	e.trace = trace;
-	e.jentry =jentry;
-	e.time=time;
-	previousEvents.push_back(e);	  
-      }
   
   //Periodic printing
   if (jentry % 10000 == 0 )
     cout<<"On event "<<jentry<<endl;
   
-  //Fill the tree
-  if (makeTraces)
-    outT->Fill();
+
   
 }//End for
 

@@ -47,19 +47,6 @@ $(MAINO): $(MAIN)
 
 
 
-get:	
-	@echo "In Get"
-	@mv ./$(INCLUDEPATH)/*.h .
-	@mv ./$(SRCPATH)/*.cc .
-	-@mv ./obj/*.o .
-
-put:
-	@echo "In put"
-	-@mv ./*.h ./$(INCLUDEPATH)/
-	-@mv ./*.cc ./$(SRCPATH)/
-	-@mv ./*.o ./obj/
-	@mv ./$(SRCPATH)/EvtBuilder_sam.cc .
-
 clean:
 	-rm ./$(OBJECTS)
 	-rm ./$(EXECUTABLE)
