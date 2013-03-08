@@ -56,8 +56,6 @@ int main(int argc, char **argv){
   
   ////////////////////////////////////////////////////////////////////////////////////
 
-
-
   //load correcctions and settings
   
   Double_t sigma=theInputManager.sigma; // the sigma used in the fitting option
@@ -77,40 +75,8 @@ int main(int argc, char **argv){
   Double_t FG=theInputManager.FG;
   int CFD_delay=theInputManager.d; //in clock ticks
   Double_t CFD_scale_factor =theInputManager.w;
-  Bool_t correctionRun =theInputManager.correction;
 
-  CorrectionManager corMan;
-  corMan.loadFile(runNum);
-  Double_t SDelta_T1_Cor=corMan.get("sdt1");
-  Double_t SDelta_T2_Cor=corMan.get("sdt2");
-  Double_t int_corrections[4];  
-  int_corrections[0]=corMan.get("int0");
-  int_corrections[1]=corMan.get("int1");
-  int_corrections[2]=corMan.get("int2");
-  int_corrections[3]=corMan.get("int3");
-  
-  int degree=3;
-  Double_t GOE_cor1[degree];
-  Double_t GOE_cor2[degree];
-  Double_t DeltaT_cor1[degree];
-  Double_t DeltaT_cor2[degree];
-  std::stringstream temp;
-  for (int i=1;i<=degree;i++){
-    temp.str("");
-    temp<<"goe1_"<<i;
-    GOE_cor1[i-1]=corMan.get(temp.str().c_str());
-    temp.str("");
-    temp<<"goe2_"<<i;
-    GOE_cor2[i-1]=corMan.get(temp.str().c_str());
 
-    temp.str("");
-    temp<<"dt1_"<<i;
-    DeltaT_cor1[i-1]=corMan.get(temp.str().c_str());
-
-    temp.str("");
-    temp<<"dt2_"<<i;
-    DeltaT_cor1[i-1]=corMan.get(temp.str().c_str());
-  }
 
 
 
@@ -122,31 +88,25 @@ int main(int argc, char **argv){
   fileMan->timingMode = theInputManager.timingMode;
   
   TChain * inT;
-
-  if (!correctionRun){
-    inT= new TChain("dchan");
-    if (numFiles == -1 ){
-      TString s = fileMan->loadFile(runNum,0);
-      inT->Add(s);
-    } else {
-      for (Int_t i=0;i<numFiles;i++) {
-	TString s = fileMan->loadFile(runNum,i);
-	inT->Add(s);
-      }
-    }
+  
+  inT= new TChain("dchan");
+  if (numFiles == -1 ){
+    TString s = fileMan->loadFile(runNum,0);
+    inT->Add(s);
   } else {
-    inT= new TChain("flt");
-    inT->Add((TString)theInputManager.specificFileName);
+    for (Int_t i=0;i<numFiles;i++) {
+      TString s = fileMan->loadFile(runNum,i);
+	inT->Add(s);
+    }
   }
-    inT->SetMakeClass(1);
-    Long64_t nentry=(Long64_t) (inT->GetEntries());
-
+  
+  inT->SetMakeClass(1);
+  Long64_t nentry=(Long64_t) (inT->GetEntries());
+  
   cout <<"The number of entires is : "<< nentry << endl ;
-
   
   // Openning output Tree and output file
-  
-  
+    
   if (extFlag == false && ext_sigma_flag==false)
     outFile = fileMan->getOutputFile();
   else if (extFlag == true && ext_sigma_flag==false){
@@ -191,7 +151,7 @@ int main(int argc, char **argv){
   inT->SetBranchAddress("slotid", &slotid);
   inT->SetBranchAddress("time", &time);
   
-
+  
   //Specify the output branch
   outT->Branch("Event",&Event);
   //  outT->BranchRef();
@@ -201,7 +161,7 @@ int main(int argc, char **argv){
   Double_t sizeOfRollingWindow=3;  //Require that a lenda bar fired in both PMTS and one liquid scint
   
   ////////////////////////////////////////////////////////////////////////////////////
-
+  
   if(maxentry == -1)
     maxentry=nentry;
   
@@ -233,7 +193,7 @@ int main(int argc, char **argv){
 	  Double_t longGate,shortGate;
 	  Double_t start;
 	  Double_t timeDiff;
-
+	  
 	  for (int i=0;i<previousEvents.size();++i){
 	    events_extra[previousEvents[i].channel]=&(previousEvents[i]);
 	  }
@@ -264,36 +224,26 @@ int main(int argc, char **argv){
 	      shortGate = theFilter.getGate(events[i]->trace,start,14);
 	      
 	      Event->pushTrace(events[i]->trace);//save the trace for later 
-	      Event->Time_Diff = timeDiff;
+
 	      Event->pushLongGate(longGate);
 	      Event->pushShortGate(shortGate);
 	      Event->pushChannel(events[i]->channel);
 	      Event->pushEnergy(thisEventsIntegral);
 	      Event->pushTime(events[i]->time);
-	      Event->pushShiftCorrections(SDelta_T1_Cor,SDelta_T2_Cor);
 	    }
 	    Event->Finalize();
 	    outT->Fill();
 	    Event->Clear();
-    	    
 	  }
 	}
     }
     
     pushRollingWindow(previousEvents,sizeOfRollingWindow,
 		      time,chanid,trace,jentry);
-
-     
-
-
     
-      
-  
-  //Periodic printing
-  if (jentry % 10000 == 0 )
+    //Periodic printing
+    if (jentry % 10000 == 0 )
     cout<<"On event "<<jentry<<endl;
-  
-
   
 }//End for
 
