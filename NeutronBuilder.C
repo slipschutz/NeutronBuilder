@@ -18,16 +18,16 @@
 #include "TChain.h"
 
 //Local Headers
-#include "SL_Event.hh"
+#include "LendaEvent.hh"
 #include "Filter.hh"
 #include "FileManager.h"
 #include "InputManager.hh"
 #include "CorrectionManager.hh"
 
+
+
 #include "functions.hh"
 #define BAD_NUM -10008
-
-
 
 
 
@@ -55,6 +55,7 @@ int main(int argc, char **argv){
   }
   
   ////////////////////////////////////////////////////////////////////////////////////
+
 
 
   //load correcctions and settings
@@ -119,6 +120,7 @@ int main(int argc, char **argv){
   TTree  *outT;
   FileManager * fileMan = new FileManager();
   fileMan->timingMode = theInputManager.timingMode;
+  
   TChain * inT;
 
   if (!correctionRun){
@@ -141,11 +143,11 @@ int main(int argc, char **argv){
 
   cout <<"The number of entires is : "<< nentry << endl ;
 
-
+  
   // Openning output Tree and output file
-  if (correctionRun)
-    outFile=fileMan->getOutputFile(theInputManager.specificFileName);
-  else if (extFlag == false && ext_sigma_flag==false)
+  
+  
+  if (extFlag == false && ext_sigma_flag==false)
     outFile = fileMan->getOutputFile();
   else if (extFlag == true && ext_sigma_flag==false){
     CFD_scale_factor = CFD_scale_factor/10.0; //bash script does things in whole numbers
@@ -176,29 +178,23 @@ int main(int argc, char **argv){
   UInt_t timelow; // this used to be usgined long
   UInt_t timehigh; // this used to be usgined long
   UInt_t timecfd ; 
-  Double_t correlatedTimes_in[numOfChannels];
-  Double_t integrals_in[numOfChannels];
-
-  SL_Event* Event = new SL_Event();
-  SL_Event *inEvent=new SL_Event();//FOr reading in processed trees for corrections 
-  if (! correctionRun ){
-    //In put tree branches    
-    inT->SetBranchAddress("chanid", &chanid);
-    inT->SetBranchAddress("fUniqueID", &fUniqueID);
-    inT->SetBranchAddress("energy", &energy);
-    inT->SetBranchAddress("timelow", &timelow);
-    inT->SetBranchAddress("timehigh", &timehigh);
-    inT->SetBranchAddress("trace", &trace);
-    inT->SetBranchAddress("timecfd", &timecfd);
-    inT->SetBranchAddress("slotid", &slotid);
-    inT->SetBranchAddress("time", &time);
-  } else {
-    inT->SetBranchAddress("Event",&inEvent);
-  }
+  LendaEvent* Event = new LendaEvent();
+  
+  //In put tree branches    
+  inT->SetBranchAddress("chanid", &chanid);
+  inT->SetBranchAddress("fUniqueID", &fUniqueID);
+  inT->SetBranchAddress("energy", &energy);
+  inT->SetBranchAddress("timelow", &timelow);
+  inT->SetBranchAddress("timehigh", &timehigh);
+  inT->SetBranchAddress("trace", &trace);
+  inT->SetBranchAddress("timecfd", &timecfd);
+  inT->SetBranchAddress("slotid", &slotid);
+  inT->SetBranchAddress("time", &time);
+  
 
   //Specify the output branch
-  outT->Branch("Event","SL_Event",&Event,2000000);
-  outT->BranchRef();
+  outT->Branch("Event",&Event);
+  //  outT->BranchRef();
 
   ////////////////////////////////////////////////////////////////////////////////////
   vector <Sl_Event> previousEvents;
@@ -268,9 +264,9 @@ int main(int argc, char **argv){
 	      shortGate = theFilter.getGate(events[i]->trace,start,14);
 	      
 	      Event->pushTrace(events[i]->trace);//save the trace for later 
-	      Event->Time_Diff = timeDiff+10;
-	      Event->longGate = longGate;
-	      Event->shortGate = shortGate;
+	      Event->Time_Diff = timeDiff;
+	      Event->pushLongGate(longGate);
+	      Event->pushShortGate(shortGate);
 	      Event->pushChannel(events[i]->channel);
 	      Event->pushEnergy(thisEventsIntegral);
 	      Event->pushTime(events[i]->time);
@@ -283,20 +279,10 @@ int main(int argc, char **argv){
 	  }
 	}
     }
-        
-    if (correctionRun){
-      for (int i=0;i< (inEvent->channels).size();++i){
-	time = (inEvent->times)[i];
-	chanid = (inEvent->channels)[i];
-	trace = (inEvent->traces)[i];
-	pushRollingWindow(previousEvents,sizeOfRollingWindow,
-			  time,chanid,trace,jentry);
-      }
-    } else {
-      
-      pushRollingWindow(previousEvents,sizeOfRollingWindow,
-			time,chanid,trace,jentry);
-    }
+    
+    pushRollingWindow(previousEvents,sizeOfRollingWindow,
+		      time,chanid,trace,jentry);
+
      
 
 
