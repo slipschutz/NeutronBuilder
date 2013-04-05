@@ -189,8 +189,6 @@ int main(int argc, char **argv){
 	  //sort the last size of rolling window evens by channel
 	  vector <Sl_Event*> events_extra(20,(Sl_Event*)0);
 	  vector <Sl_Event*> events;
-	  Double_t thisEventsIntegral=0;
-	  Double_t longGate,shortGate;
 	  Double_t start;
 	  Double_t timeDiff;
 	  
@@ -211,20 +209,22 @@ int main(int argc, char **argv){
 	    vector <Double_t> thisEventsCFD;
 	    
 	    for (int i=0;i<events.size();++i){
-	      
-	      theFilter.FastFilter(events[i]->trace,thisEventsFF,FL,FG);
 
-	      thisEventsCFD = theFilter.CFD(thisEventsFF,CFD_delay,CFD_scale_factor);
-	      softwareCFD = theFilter.GetZeroCrossing(thisEventsCFD);
-	      start = TMath::Floor(softwareCFD) -5;
-	      thisEventsIntegral = theFilter.getEnergy(events[i]->trace);
-	      
-	      
-	      longGate = theFilter.getGate(events[i]->trace,start,25);
-	      shortGate = theFilter.getGate(events[i]->trace,start,14);
-	      
-	      Event->pushTrace(events[i]->trace);//save the trace for later 
-
+	      Double_t thisEventsIntegral=0;
+	      Double_t longGate=0;
+	      Double_t shortGate=0;
+	      if ((events[i]->trace).size() !=0){
+		theFilter.FastFilter(events[i]->trace,thisEventsFF,FL,FG);
+		thisEventsCFD = theFilter.CFD(thisEventsFF,CFD_delay,CFD_scale_factor);
+		
+		softwareCFD = theFilter.GetZeroCrossing(thisEventsCFD);
+		start = TMath::Floor(softwareCFD) -5;
+		thisEventsIntegral = theFilter.getEnergy(events[i]->trace);
+		longGate = theFilter.getGate(events[i]->trace,start,25);
+		shortGate = theFilter.getGate(events[i]->trace,start,14);
+		events[i]->energy = thisEventsIntegral;
+	      }
+	      Event->pushTrace(events[i]->trace);//save the trace for later if its there
 	      Event->pushLongGate(longGate);
 	      Event->pushShortGate(shortGate);
 	      Event->pushChannel(events[i]->channel);
@@ -239,7 +239,7 @@ int main(int argc, char **argv){
     }
     
     pushRollingWindow(previousEvents,sizeOfRollingWindow,
-		      time,chanid,trace,jentry);
+		      time,chanid,trace,jentry,energy);
     
     //Periodic printing
     if (jentry % 10000 == 0 )
