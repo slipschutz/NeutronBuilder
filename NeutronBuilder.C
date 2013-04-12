@@ -200,7 +200,7 @@ int main(int argc, char **argv){
 	      events.push_back(events_extra[i]);
 	    }
 	  }
-
+	  
 	  timeDiff = 0.5*(events[0]->time + events[1]->time) - events[2]->time;
 	  if (TMath::Abs(timeDiff) <100){
 	    ///Good event
@@ -209,11 +209,10 @@ int main(int argc, char **argv){
 	    vector <Double_t> thisEventsCFD;
 	    
 	    for (int i=0;i<events.size();++i){
-
 	      Double_t thisEventsIntegral=0;
 	      Double_t longGate=0;
 	      Double_t shortGate=0;
-	      if ((events[i]->trace).size() !=0){
+	      if ( (events[i]->trace).size() !=0){
 		theFilter.FastFilter(events[i]->trace,thisEventsFF,FL,FG);
 		thisEventsCFD = theFilter.CFD(thisEventsFF,CFD_delay,CFD_scale_factor);
 		
@@ -228,7 +227,7 @@ int main(int argc, char **argv){
 	      Event->pushLongGate(longGate);
 	      Event->pushShortGate(shortGate);
 	      Event->pushChannel(events[i]->channel);
-	      Event->pushEnergy(thisEventsIntegral);
+	      Event->pushEnergy(events[i]->energy);
 	      Event->pushTime(events[i]->time);
 	    }
 	    Event->Finalize();
