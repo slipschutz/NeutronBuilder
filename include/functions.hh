@@ -20,6 +20,7 @@ Bool_t checkChannels(vector <Sl_Event> &in){
   for (int i=0;i<in.size();i++){
       ch[in[i].channel]=true;
   }
+
   // if it was a good event there should be 3 trues
   //from 3 different channels
   int count=0;
@@ -28,19 +29,18 @@ Bool_t checkChannels(vector <Sl_Event> &in){
   //should be there 
 
 
-  int tot =0;
+
   for (int i=0;i <ch.size();i++){
     if (ch[i]==true){
       count++;
       if (i==8 || i ==9 ){
 	liq_scint_count++;
-      } else {
-	tot=tot +i;
       }
     }
   }
   
-  if (count == 3 && liq_scint_count==1 && (tot==1 || tot==5 ))
+
+  if (count == 3 && liq_scint_count==1 )
     return true;
   else 
     return false;
